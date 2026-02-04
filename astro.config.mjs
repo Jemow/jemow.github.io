@@ -12,7 +12,7 @@ import icon from "astro-icon";
 // https://astro.build/config
 export default defineConfig({
   site: "https://jemo.github.io",
-  base: '/jemo.github.io/',
+  base: '/',
   integrations: [mdx(), sitemap(), pagefind(), icon()],
 
   vite: {
