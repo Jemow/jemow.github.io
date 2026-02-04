@@ -1,0 +1,19 @@
+author:
+  name: Jemo
+  role: Game Programmer
+  bio:  Hi, I'm Jemo, and I develop games with Unity.
+  location: Geneva, Switzerland
+
+social:
+  - id: "x"
+    label: "X"
+    href: "https://x.com/Jemow4"
+  - id: "github"
+    label: "GitHub"
+    href: "https://github.com/Jemow"
+  - id: "linkedin"
+    label: "Linkedin"
+    href: "https://www.linkedin.com/in/jemoel-ablay-074208309/"
+  - id: "email"
+    label: "jemoablay0@gmail.com"
+    href: "mailto:jemoablay0@gmail.com"
