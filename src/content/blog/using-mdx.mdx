@@ -3,7 +3,7 @@ title: 'OpenGL ES Renderer'
 description: 'A technical devlog of my 2nd-year project: building a real-time 3D scene using OpenGL ES.'
 pubDate: 2026-02-03
 updatedDate: 2026-02-04
-heroImage: ../../assets/cars1_tuner_scene.png
+heroImage: /src/assets/cars1_tuner_scene.png
 author: Jemo
 tags:
   - Engine
@@ -32,7 +32,7 @@ Pour la scène, j'ai choisi des modèles iconiques du film Cars (notamment Wingo
 Cependant, pour obtenir un rendu réaliste dans mon pipeline, j'ai générer des 
 textures compatibles via PBR Forge car les models n'avaient que leur textures.
 
-![Wingo](../../assets/wingo.png)
+![Wingo](/assets/wingo.png)
 
 Pour l'importation des modèles 3D, j'ai utilisé la library [Assimp](https://github.com/assimp/assimp)
 qui permet de générer les vertices, indices et materials.
@@ -100,7 +100,7 @@ vertex_input_.BindVertexBuffer(vertex_buffer_, attributes);
 
 ## Materials & Textures
 
-![Textures](../../assets/textures.png)
+![Textures](/assets/textures.png)
 Pour charger les textures associées au modèle, j'ai créé une méthode LoadMaterial. Elle utilise une
 petite lambda bien pratique pour vérifier si une texture existe dans le fichier .obj (via Assimp)
 et la charger automatiquement dans le bon slot de ma structure Material.
@@ -200,7 +200,7 @@ Dans cette image, notre caméra se trouve à l'intérieur de la voiture (Wingo).
 Avec le Back-Face Culling activé, toutes les faces de la carrosserie qui pointent
 vers l'extérieur ne sont pas rendues. C'est pour cette raison que l'on peut voir 
 à travers le modèle depuis l'intérieur.
-![Back Face Culling example](../../assets/back_face_culling.png)
+![Back Face Culling example](/assets/back_face_culling.png)
 Pour tester visuellement le concept, on peut également inverser le mode en Front-Face Culling :
 dans ce cas, le GPU n'affichera que l'intérieur (les faces arrière) et masquera l'extérieur 
 de la voiture.
@@ -214,7 +214,7 @@ de vision de la caméra.
 
 Le champ de vision est représenté par une pyramide tronquée (le Frustum) définie par six plans : 
 le Near plane, le Far plane, ainsi que les plans haut, bas, gauche et droite.
-![Frsutum Camera example](../../assets/frustum_example.png)
+![Frsutum Camera example](/assets/frustum_example.png)
 Pour savoir si un objet doit être rendu, je vérifie s'il intersecte cette zone de vision. 
 Chaque modèle possède un membre AABB (Axis-Aligned Bounding Box) qui
 est pré-calculé lors du Model::Load.
@@ -252,7 +252,7 @@ L'Instancing est une autre technique d'optimisation. C'est ce qui permet
 d'afficher des centaines d'objets identiques, comme mes cônes de chantier,
 en un seul draw call. Au lieu d'envoyer chaque cône un par un,
 j'envoie un tableau de matrices de transformation au GPU.
-![Instancing Cone example](../../assets/instancing_example.png)
+![Instancing Cone example](/assets/instancing_example.png)
 Pour que cela fonctionne, je dois configurer des attributs de sommets particuliers. 
 Une matrice mat4 occupant 4 slots consécutifs (locations 5 à 8), j'utilise glVertexAttribDivisor.
 Cela indique à OpenGL de ne passer à la matrice suivante qu'après avoir dessiné un objet complet, 
@@ -299,7 +299,7 @@ Pour valider que l'instancing fonctionne correctement, j'ai utilisé RenderDoc a
 Sur la capture ci-dessous, on peut voir l'appel glDrawElementsInstanced. Au lieu de dessiner 
 un seul cône, le GPU en génère 4 en un seul passage en utilisant les données de mon instance 
 buffer (évidemment on peut en instancier bien plus que 4 😅).
-![Instancing RenderDoc example](../../assets/instancing_renderdoc.png)
+![Instancing RenderDoc example](/assets/instancing_renderdoc.png)
 C'est cette technique qui permet de garder un framerate élevé même avec une scène chargée d'objets répétitifs.
 
 ## Deferred Rendering
@@ -308,7 +308,7 @@ Le Deferred Rendering est le cœur de mon pipeline de rendu. Contrairement au re
 pour chaque objet au moment de le dessiner, le Deferred repose sur une séparation claire entre la 
 récupération des données géométriques et le calcul final de l'image. Cette architecture m'a permis 
 d'intégrer efficacement de nombreuses passes de rendu (Shadows, SSAO, Bloom) sans surcharger le GPU.
-![Deferred Overview](../../assets/deferred_overview.png)
+![Deferred Overview](/assets/deferred_overview.png)
 
 ## Geometry Buffer
 
@@ -357,13 +357,13 @@ void GBuffer::BlitDepthToDefault(const unsigned int width, unsigned int const he
 ```
 Voici le rendu de mes différents buffers tel qu'on peut les observer lors d'une capture sur RenderDoc :
 - Positions : Chaque pixel stocke ses coordonnées mondiales (XYZ).
-![GBuffer Position](../../assets/gbuffer_position.png)
+![GBuffer Position](/assets/gbuffer_position.png)
 - Normales : L'orientation de chaque surface.
-![GBuffer Normal](../../assets/gbuffer_normal.png)
+![GBuffer Normal](/assets/gbuffer_normal.png)
 - Albedo : Les couleurs brutes des textures.
-![GBuffer Albedo](../../assets/gbuffer_albedo.png)
+![GBuffer Albedo](/assets/gbuffer_albedo.png)
 - Emissive : Uniquement les zones qui émettent de la lumière.
-![GBuffer Emissive](../../assets/gbuffer_emissive.png)
+![GBuffer Emissive](/assets/gbuffer_emissive.png)
 
 ## Shadow Pass
 
@@ -411,7 +411,7 @@ void main() {
 }
 ```
 Voici à quoi ressemble cette texture de profondeur capturée depuis la source lumineuse
-![Shadow Map](../../assets/shadow_map.png)
+![Shadow Map](/assets/shadow_map.png)
 Une fois la texture de profondeur générée, je fais le calcul d'ombre dans mon fragment
 shader principal, deferred_lit.frag. Pour éviter le Shadow Acne (des bandes noires dues
 à l'imprécision du calcul), j'applique un Bias classique et un Normal Bias qui dépend
@@ -446,11 +446,11 @@ float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 fragPos) {
 ```
 Sur cette image, l'intensité de la lumière a été poussée pour bien voir les ombres. Sans aucun filtrage, 
 les bords s'arrêtent net et l'aspect est très pixelisé
-![Shadow without PCF](../../assets/shadow.png)
+![Shadow without PCF](/assets/shadow.png)
 Pour corriger ça, j'utilise le PCF. Le principe est de faire une "photo" des ombres
 autour du pixel actuel en échantillonnant une grille 3x3 dans la shadow map,
 puis de faire la moyenne. Cela crée un dégradé qui adoucit les contours.
-![Shadow with PCF](../../assets/shadow_pcf.png)
+![Shadow with PCF](/assets/shadow_pcf.png)
 Même avec le PCF, on voit encore parfois une forme de grille dans l'ombre. Pour corriger ça, j'utilise un Poisson Disk.
 Au lieu de tester les pixels sur une grille carrée toute droite, j'utilise 16 points placés de 
 façon plus "aléatoire" mais bien répartis. Je me suis basé sur ce [LearnOpenGL](https://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/#poisson-sampling) pour l'implémentation.
@@ -497,5 +497,5 @@ float shadow = 0.0;
 ```
 Voici le résultat final. L'ombre est maintenant beaucoup plus "smooth" et naturelle grâce au
 mélange du Poisson Disk et de la rotation aléatoire.
-![Shadow with Poisson Sampling + Rotation](../../assets/shadow_poisson.png)
+![Shadow with Poisson Sampling + Rotation](/assets/shadow_poisson.png)
 # Conclusion
