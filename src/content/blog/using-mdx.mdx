@@ -14,12 +14,11 @@ tags:
 # Introduction
 
 Dans le cadre de mon projet de 2ème année à la SAE Institute Genève,
-j'ai eu pour mission de construire une scène 3D en temps réel 'from scratch', 
-en utilisant C++ et OpenGL ES 3.0. 
+j'ai eu pour mission de construire une scène 3D en utilisant C++ et OpenGL ES 3.0. 
 
 Ce projet a été l'occasion de voir le fonctionnement bas niveau du GPU. 
 Dans ce blogpost, je vais présenter les techniques de rendu, en me concentrant 
-sur les concepts clés plutôt que sur les détails d'implémentation.
+sur les concepts importants plutôt que sur les détails d'implémentation.
 Pour aller plus en pronfondeur , vous pouvez lire [LearnOpenGL](https://learnopengl.com/) qui
 est l'endroit qui ma servit de références tout du long du module.
 
@@ -27,11 +26,11 @@ est l'endroit qui ma servit de références tout du long du module.
 
 ## Model
 
-Tout commence par l'importation de la géométrie. J'ai opté pour le 
-format standard Wavefront (.obj) pour sa simplicité et sa compatibilité.
+Tout commence par l'importation de la géométrie. J'ai opté pour des models 
+format standard Wavefront (.obj) pour leur simplicité.
 Pour la scène, j'ai choisi des modèles iconiques du film Cars (notamment Wingo). 
 Cependant, pour obtenir un rendu réaliste dans mon pipeline, j'ai générer des 
-textures compatibles via PBR Forge.
+textures compatibles via PBR Forge car les models n'avaient que leur textures.
 
 ![Wingo](/src/assets/wingo.png)
 
@@ -51,7 +50,7 @@ const aiScene* scene = importer.ReadFile(
     aiProcess_CalcTangentSpace
 );
 ```
-Une fois le fichier lu, j'utilise une fonction récursive ProcessNode qui parcourt la 
+Une fois le fichier lu, la fonction récursive ProcessNode parcourt la 
 hiérarchie du modèle pour extraire chaque partie de la voiture.
 ```cpp
 void Model::ProcessNode(const aiNode* node, const aiScene* scene)
@@ -134,7 +133,7 @@ Material Model::LoadMaterial(const aiMaterial* mat) const
 }
 ```
 Une fois les matériaux chargés, il faut les envoyer au shader. 
-Pour simplifier cela, j'utilise la méthode SetTexture dans l'abstraction Pipeline.
+Pour simplifier cela, j'utilise la méthode SetTexture de l'abstraction Pipeline.
 
 Cette méthode fait deux choses importantes : elle informe le shader de l'unité de
 texture à utiliser (via un uniform int) et elle active cette 
@@ -146,7 +145,7 @@ void Pipeline::SetTexture(std::string_view name, const Texture& texture, int tex
   texture.Bind();
 }
 ```
-Dans la méthode Bind du matériau, j'utilise cette abstraction pour lier toutes les maps
+Dans la méthode Bind de la class Material, j'utilise cette abstraction pour lier toutes les maps
 (BaseColor, Normale, Metallic, etc.) de manière organisée. J'envoie aussi des booléens pour 
 que le shader sache si une texture est présente ou s'il doit utiliser une valeur par défaut.
 ```cpp
@@ -166,6 +165,26 @@ void Bind(common::Pipeline& pipeline) const {
 ```
 Puis la classe common::Texture s'occupe de la partie technique avec stb_image.
 
+## Normal Mapping
+
+Le Normal Mapping sert à simuler du relief sur la carrosserie des voitures.
+Le souci, c'est que les normales d'une "Normal Map" sont dans l'espace tangent (local à la face).
+Pour les utiliser dans l'espace monde pour la lumière, il faut une matrice de transition : 
+la matrice TBN.
+
+Je fais le calcul dans le Vertex Shader avec les attributs aNormal et aTangent d'Assimp.
+```cpp
+  mat3 normalMatrix = mat3(transpose(inverse(finalModel)));
+  vec3 T = normalize(normalMatrix * aTangent);
+  vec3 N = normalize(normalMatrix * aNormal);
+  T = normalize(T - dot(T, N) * N);
+  vec3 B = cross(N, T);
+```
+J'utilise ici le procédé de Gram-Schmidt pour être sûr que la tangente reste parfaitement
+orthogonale à la normale. Ensuite, je calcule la bitangente avec un Cross.
+Ce calcul me permet de passer de l'espace tangent à l'espace monde (World Space), 
+là où je fais tous mes calculs de lumière.
+
 ## Back Face Culling
 
 Pour optimiser le rendu, j'ai appris 2 techniques de culling.
@@ -183,7 +202,7 @@ vers l'extérieur ne sont pas rendues. C'est pour cette raison que l'on peut voi
 à travers le modèle depuis l'intérieur.
 ![Back Face Culling example](/src/assets/back_face_culling.png)
 Pour tester visuellement le concept, on peut également inverser le mode en Front-Face Culling :
-dans ce cas,le GPU n'affichera que l'intérieur (les faces arrière) et masquera l'extérieur 
+dans ce cas, le GPU n'affichera que l'intérieur (les faces arrière) et masquera l'extérieur 
 de la voiture.
 
 ## Frustum Culling
@@ -194,7 +213,7 @@ L'objectif est de ne pas envoyer au GPU les objets qui se trouvent en dehors du 
 de vision de la caméra.
 
 Le champ de vision est représenté par une pyramide tronquée (le Frustum) définie par six plans : 
-le Near plane (proche), le Far plane (lointain), ainsi que les plans haut, bas, gauche et droite.
+le Near plane, le Far plane, ainsi que les plans haut, bas, gauche et droite.
 ![Frsutum Camera example](/src/assets/frustum_example.png)
 Pour savoir si un objet doit être rendu, je vérifie s'il intersecte cette zone de vision. 
 Chaque modèle possède un membre AABB (Axis-Aligned Bounding Box) qui
@@ -229,9 +248,254 @@ Frustum Camera::get_frustum() const
 
 ## GPU Instancing
 
-La dernière technique d'optimisation que j'ai implémentée est l'Instancing.
-C'est indispensable pour afficher des objets répétés de nombreuses fois,
-comme les cônes de chantier dans ma scène.
+L'Instancing est une autre technique d'optimisation. C'est ce qui permet
+d'afficher des centaines d'objets identiques, comme mes cônes de chantier,
+en un seul draw call. Au lieu d'envoyer chaque cône un par un,
+j'envoie un tableau de matrices de transformation au GPU.
 ![Instancing Cone example](/src/assets/instancing_example.png)
+Pour que cela fonctionne, je dois configurer des attributs de sommets particuliers. 
+Une matrice mat4 occupant 4 slots consécutifs (locations 5 à 8), j'utilise glVertexAttribDivisor.
+Cela indique à OpenGL de ne passer à la matrice suivante qu'après avoir dessiné un objet complet, 
+et pas après chaque sommet.
+```cpp
+void Mesh::SetupInstancing(const common::VertexBuffer& instance_buffer) {
+    vertex_input_.Bind();
+    instance_buffer.Bind();
 
+    std::size_t vec4Size = sizeof(glm::vec4);
+    glEnableVertexAttribArray(5);
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)0);
+    glEnableVertexAttribArray(6);
+    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(1 * vec4Size));
+    glEnableVertexAttribArray(7);
+    glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(2 * vec4Size));
+    glEnableVertexAttribArray(8);
+    glVertexAttribPointer(8, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(3 * vec4Size));
+
+    glVertexAttribDivisor(5, 1);
+    glVertexAttribDivisor(6, 1);
+    glVertexAttribDivisor(7, 1);
+    glVertexAttribDivisor(8, 1);
+}
+```
+Côté Shader, la logique est très simple. Si l'instancing est activé, j'utilise la matrice 
+d'instance reçue en attribut (aInstanceMatrix) à la place de la matrice de modèle classique.
+Cela permet de positionner chaque cône à sa coordonnée unique tout en utilisant la même géométrie.
+```cpp
+layout (location = 5) in mat4 aInstanceMatrix;
+uniform bool useInstancing;
+
+void main() {
+    mat4 finalModel = useInstancing ? aInstanceMatrix : model;
+    vec4 worldPos = finalModel * vec4(aPos, 1.0);
+    
+    gl_Position = projection * view * worldPos;
+}
+```
+Enfin, pour le rendu, il suffit d'appeler glDrawElementsInstanced. Mon abstraction Model se charge de 
+répercuter cet appel sur tous ses sub meshes.
+
+Pour valider que l'instancing fonctionne correctement, j'ai utilisé RenderDoc afin d'inspecter les appels GPU.
+Sur la capture ci-dessous, on peut voir l'appel glDrawElementsInstanced. Au lieu de dessiner 
+un seul cône, le GPU en génère 4 en un seul passage en utilisant les données de mon instance 
+buffer (évidemment on peut en instancier bien plus que 4 😅).
+![Instancing RenderDoc example](/src/assets/instancing_renderdoc.png)
+C'est cette technique qui permet de garder un framerate élevé même avec une scène chargée d'objets répétitifs.
+
+## Deferred Rendering
+
+Le Deferred Rendering est le cœur de mon pipeline de rendu. Contrairement au rendu classique où l'on calcule la lumière 
+pour chaque objet au moment de le dessiner, le Deferred repose sur une séparation claire entre la 
+récupération des données géométriques et le calcul final de l'image. Cette architecture m'a permis 
+d'intégrer efficacement de nombreuses passes de rendu (Shadows, SSAO, Bloom) sans surcharger le GPU.
+![Deferred Overview](/src/assets/deferred_overview.png)
+
+## Geometry Buffer
+
+L'objectif est d'éviter de calculer l'éclairage de pixels qui seront finalement cachés par d'autres objets devant eux. 
+Pour cela, on utilise un G-Buffer.
+
+Le G-Buffer est un ensemble de textures dans lesquelles on stocke les informations géométriques de la scène lors de la "Geometry Pass".
+Au lieu de dessiner une image finale, on remplit plusieurs buffers simultanément :
+- Positions
+- Normales
+- Albedo (BaseColor)
+- Emissive
+
+Pour que cela fonctionne techniquement, j'ai créé une classe GBuffer. L'élément le plus important
+est l'initialisation des textures via une lambda createTex. Cela me permet de configurer proprement
+le MRT (Multiple Render Targets) en attachant chaque buffer (Position, Normale, Albedo, Emissive)
+à un slot spécifique.
+
+```cpp
+auto createTex = [&](GLuint& id, const GLint internal, const GLenum type, const int attach) {
+    glGenTextures(1, &id);
+    glBindTexture(GL_TEXTURE_2D, id);
+    glTexImage2D(GL_TEXTURE_2D, 0, internal, width, height, 0, GL_RGBA, type, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attach, GL_TEXTURE_2D, id, 0);
+};
+
+createTex(g_position_, GL_RGBA16F, GL_FLOAT, 0);
+createTex(g_normal_, GL_RGBA16F, GL_FLOAT, 1);
+createTex(g_albedo_, GL_RGBA, GL_UNSIGNED_BYTE, 2);
+createTex(g_emissive_, GL_RGBA16F, GL_FLOAT, 3);
+```
+Une autre méthode cruciale est BlitDepthToDefault. Comme le Deferred Rendering s'effectue sur un simple 
+Quad à la fin, on perdrait normalement les informations de profondeur. Cette fonction me permet de 
+copier le buffer de profondeur du G-Buffer vers le buffer par défaut du système. 
+Cela évite que la Skybox ou d'autres objets couvrent les voitures.
+```cpp
+void GBuffer::BlitDepthToDefault(const unsigned int width, unsigned int const height) const
+{
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, g_buffer_);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer(0, 0, width_, height_, 0, 0, width, height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+```
+Voici le rendu de mes différents buffers tel qu'on peut les observer lors d'une capture sur RenderDoc :
+- Positions : Chaque pixel stocke ses coordonnées mondiales (XYZ).
+![GBuffer Position](/src/assets/gbuffer_position.png)
+- Normales : L'orientation de chaque surface.
+![GBuffer Normal](/src/assets/gbuffer_normal.png)
+- Albedo : Les couleurs brutes des textures.
+![GBuffer Albedo](/src/assets/gbuffer_albedo.png)
+- Emissive : Uniquement les zones qui émettent de la lumière.
+![GBuffer Emissive](/src/assets/gbuffer_emissive.png)
+
+## Shadow Pass
+
+Avant d'attaquer le G-Buffer, je dois générer une Shadow Map pour calculer les ombres de ma lumière directionnelle.
+Le principe est de faire une passe de rendu du point de vue de la lumière pour stocker
+la profondeur de la scène dans une texture.
+
+Dans ma classe ShadowMap, j'utilise un FBO avec uniquement un GL_DEPTH_ATTACHMENT.
+Comme je n'ai pas besoin de couleurs ici, je désactive explicitement les buffers 
+de lecture et d'écriture.
+```cpp
+glGenFramebuffers(1, &fbo_);
+glGenTextures(1, &depth_map_texture_);
+
+glBindTexture(GL_TEXTURE_2D, depth_map_texture_);
+glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, width_, height_, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, NULL);
+
+glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
+glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_map_texture_, 0);
+
+constexpr GLenum drawBuffers[] = { GL_NONE };
+glDrawBuffers(1, drawBuffers);
+glReadBuffer(GL_NONE);
+
+glBindFramebuffer(GL_FRAMEBUFFER, 0);
+```
+Pour une lumière directionnelle, j'utilise une projection orthographique. 
+La matrice lightSpaceMatrix combine cette projection avec une vue positionnée face à la scène.
+```cpp
+const glm::mat4 lightProjection = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, zNear, zFar);
+const glm::mat4 lightView = glm::lookAt(lightPos, target, glm::vec3(0.0f, 1.0f, 0.0f));
+light_space_matrix_ = lightProjection * lightView;
+```
+Le shader est minimal. Il transforme les sommets directement dans l'espace de la lumière. Pas besoin de fragment shader complexe,
+OpenGL gère l'écriture de la profondeur automatiquement.
+```cpp
+void main() {
+    mat4 finalModel = useInstancing ? aInstanceMatrix : model;
+    gl_Position = lightSpaceMatrix * finalModel * vec4(aPos, 1.0);
+}
+```
+Voici à quoi ressemble cette texture de profondeur capturée depuis la source lumineuse
+![Shadow Map](/src/assets/shadow_map.png)
+Une fois la texture de profondeur générée, je fais le calcul d'ombre dans mon fragment
+shader principal, deferred_lit.frag. Pour éviter le Shadow Acne (des bandes noires dues
+à l'imprécision du calcul), j'applique un Bias classique et un Normal Bias qui dépend
+de l'inclinaison de la face par rapport à la lumière.
+```cpp
+float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 fragPos) {
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+
+    if(projCoords.z > 1.0) return 0.0;
+
+    float currentDepth = projCoords.z;
+    vec3 lightDir = normalize(-lights[0].direction);
+    float bias = max(shadowBias * (1.0 - dot(normal, lightDir)), shadowBias);
+
+    if(usePCF){
+        float shadow = 0.0;
+        vec2 texelSize = 1.0 / vec2(textureSize(shadowMap, 0));
+
+        for(int x = -1; x <= 1; ++x) {
+            for(int y = -1; y <= 1; ++y) {
+                float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
+                shadow += currentDepth - bias > pcfDepth  ? 1.0 : 0.0;
+            }
+        }
+        return shadow / 9.0;
+    }
+
+    float pcfDepth = texture(shadowMap, projCoords.xy).r;
+    return currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+}
+```
+Sur cette image, l'intensité de la lumière a été poussée pour bien voir les ombres. Sans aucun filtrage, 
+les bords s'arrêtent net et l'aspect est très pixelisé
+![Shadow without PCF](/src/assets/shadow.png)
+Pour corriger ça, j'utilise le PCF. Le principe est de faire une "photo" des ombres
+autour du pixel actuel en échantillonnant une grille 3x3 dans la shadow map,
+puis de faire la moyenne. Cela crée un dégradé qui adoucit les contours.
+![Shadow with PCF](/src/assets/shadow_pcf.png)
+Même avec le PCF, on voit encore parfois une forme de grille dans l'ombre. Pour corriger ça, j'utilise un Poisson Disk.
+Au lieu de tester les pixels sur une grille carrée toute droite, j'utilise 16 points placés de 
+façon plus "aléatoire" mais bien répartis. Je me suis basé sur ce [LearnOpenGL](https://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/#poisson-sampling) pour l'implémentation.
+```cpp
+vec2 poissonDisk[16] = vec2[](
+    vec2( -0.94201624, -0.39906216 ),
+    vec2( 0.94558609, -0.76890725 ),
+    vec2( -0.094184101, -0.92938870 ),
+    vec2( 0.34495938, 0.29387760 ),
+    vec2( -0.91588581, 0.45771432 ),
+    vec2( -0.81544232, -0.87912464 ),
+    vec2( -0.38277543, 0.27676845 ),
+    vec2( 0.97484398, 0.75648379 ),
+    vec2( 0.44323325, -0.97511554 ),
+    vec2( 0.53742981, -0.47373420 ),
+    vec2( -0.26496911, -0.41893023 ),
+    vec2( 0.79197514, 0.19090188 ),
+    vec2( -0.24188840, 0.99706507 ),
+    vec2( -0.81409955, 0.91437590 ),
+    vec2( 0.19984126, 0.78641367 ),
+    vec2( 0.14383161, -0.14100790 )
+);
+```
+En multipliant une valeur aléatoire par 2π (6.28318530718), je génère un angle de rotation aléatoire.
+Cet angle sert à faire pivoter les 16 points du disque différemment pour chaque pixel.
+Cela permet de "mélanger" les samples. La fonction rand vient de cette [discussion Khronos](https://community.khronos.org/t/random-values/75728 ).
+```cpp
+float shadow = 0.0;
+  vec2 texelSize = 1.0 / vec2(textureSize(shadowMap, 0));
+
+  float diskRadius = 2.0;
+
+  float angle = rand(gl_FragCoord.xy) * 6.28318530718;
+  float s = sin(angle);
+  float c = cos(angle);
+  mat2 rotationMatrix = mat2(c, -s, s, c);
+
+  for(int i = 0; i < 16; ++i){
+      vec2 offset = rotationMatrix * poissonDisk[i];
+      float pcfDepth = texture(shadowMap, projCoords.xy + offset * texelSize * diskRadius).r;
+      shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+  }
+  return shadow / 16.0;
+```
+Voici le résultat final. L'ombre est maintenant beaucoup plus "smooth" et naturelle grâce au
+mélange du Poisson Disk et de la rotation aléatoire.
+![Shadow with Poisson Sampling + Rotation](/src/assets/shadow_poisson.png)
 # Conclusion
