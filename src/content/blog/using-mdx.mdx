@@ -938,7 +938,6 @@ gEmissive = useEmissiveMap ? texture(emissiveMap, TexCoords).rgb * emissiveStren
 ```
 And finally, in the deferred lighting pass (`deferred_lit.frag`), it acts as pure light.
 So I simply add it to the final result, without any shadow calculation.
-
 This is where Bloom does all the work: since the intensity is high, the brightness
 calculation will capture these pixels and create the glowing halo.
 ```cpp
