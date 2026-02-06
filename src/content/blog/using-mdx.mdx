@@ -240,15 +240,14 @@ Frustum Camera::get_frustum() const
 
 ## GPU Instancing
 
-L'Instancing est une autre technique d'optimisation. C'est ce qui permet
-d'afficher des centaines d'objets identiques, comme mes cônes de chantier,
-en un seul draw call. Au lieu d'envoyer chaque cône un par un,
-j'envoie un tableau de matrices de transformation au GPU.
+Instancing is another optimization technique. It allows me to render hundreds of identical objects—like my traffic 
+cones—in a single draw call. Instead of sending each cone one by one, I send an array of transformation matrices to the GPU.
+
 ![Instancing Cone example](/assets/instancing_example.png)
-Pour que cela fonctionne, je dois configurer des attributs de sommets particuliers. 
-Une matrice mat4 occupant 4 slots consécutifs (locations 5 à 8), j'utilise glVertexAttribDivisor.
-Cela indique à OpenGL de ne passer à la matrice suivante qu'après avoir dessiné un objet complet, 
-et pas après chaque sommet.
+
+To make this work, I have to configure specific vertex attributes. Since a `mat4` matrix occupies
+4 consecutive slots (locations 5 to 8), I use `glVertexAttribDivisor`.
+This tells OpenGL to move to the next matrix only after drawing a complete object, not after every vertex.
 ```cpp
 void Mesh::SetupInstancing(const common::VertexBuffer& instance_buffer) {
     vertex_input_.Bind();
@@ -270,9 +269,9 @@ void Mesh::SetupInstancing(const common::VertexBuffer& instance_buffer) {
     glVertexAttribDivisor(8, 1);
 }
 ```
-Côté Shader, la logique est très simple. Si l'instancing est activé, j'utilise la matrice 
-d'instance reçue en attribut (aInstanceMatrix) à la place de la matrice de modèle classique.
-Cela permet de positionner chaque cône à sa coordonnée unique tout en utilisant la même géométrie.
+On the Shader side, the logic is pretty straightforward. If instancing is enabled,
+I use the instance matrix received as an attribute (`aInstanceMatrix`) instead of the standard model matrix.
+This allows me to position each cone at its own unique location while still using the exact same geometry.
 ```cpp
 layout (location = 5) in mat4 aInstanceMatrix;
 uniform bool useInstancing;
@@ -284,28 +283,29 @@ void main() {
     gl_Position = projection * view * worldPos;
 }
 ```
-Enfin, pour le rendu, il suffit d'appeler glDrawElementsInstanced. Mon abstraction Model se charge de 
-répercuter cet appel sur tous ses sub meshes.
+Finally, for the actual rendering, I just need to call `glDrawElementsInstanced`. 
+My `Model` abstraction takes care of handling this call for all its sub-meshes.
 
-Pour valider que l'instancing fonctionne correctement, j'ai utilisé RenderDoc afin d'inspecter les appels GPU.
-Sur la capture ci-dessous, on peut voir l'appel glDrawElementsInstanced. Au lieu de dessiner 
-un seul cône, le GPU en génère 4 en un seul passage en utilisant les données de mon instance 
-buffer (évidemment on peut en instancier bien plus que 4 😅).
+To confirm that instancing was working correctly, I used RenderDoc to inspect the GPU calls.
+In the screenshot below, you can clearly see the `glDrawElementsInstanced` call. Instead of drawing a single cone,
+ the GPU generates 4 of them in a single pass using data from my instance buffer (obviously, we can instance way more than just 4 😅).
+
 ![Instancing RenderDoc example](/assets/instancing_renderdoc.png)
-C'est cette technique qui permet de garder un framerate élevé même avec une scène chargée d'objets répétitifs.
+
+This technique is exactly what keeps the framerate high, even with a scene packed with repetitive objects.
 
 ## Cubemap
 
-Avant d'attaquer le gros du moteur, il me fallait un environnement pour placer ma voiture. 
-J'ai implémenté une Skybox. Le principe est simple : on dessine un cube géant autour de la caméra, 
-et on applique une texture sur chaque face.
+Before tackling the core of the engine, I needed an environment to place my car in.
+I implemented a Skybox. The principle is simple: draw a giant cube around the camera and apply a texture to each face.
 
-En OpenGL, on utilise une GL_TEXTURE_CUBE_MAP. C'est un type de texture spécial qui gère 6 faces
-(Right, Left, Top, Bottom, Back, Front) comme une seule entité.
+In OpenGL, we use a `GL_TEXTURE_CUBE_MAP`. It's a special texture type that 
+treats 6 faces (Right, Left, Top, Bottom, Back, Front) as a single entity.
+
 ![Cubemap example](/assets/cubemap.png)
-Pour le chargement dans l'abstraction common::Texture, l'astuce consiste à boucler sur les fichiers et à utiliser 
-l'enum GL_TEXTURE_CUBE_MAP_POSITIVE_X. Comme les enums des 6 faces se suivent en mémoire dans OpenGL,
-on peut simplement incrémenter i pour cibler la face suivante.
+
+To load this in my `common::Texture` abstraction, the trick is to loop through the files and use the `GL_TEXTURE_CUBE_MAP_POSITIVE_X` 
+enum. Since the enums for the 6 faces are sequential in OpenGL, I can simply increment `i` to target the next face.
 ```cpp
 glGenTextures(1, &get().texture_name);
 glBindTexture(GL_TEXTURE_CUBE_MAP, get().texture_name);
@@ -319,9 +319,9 @@ for (size_t i = 0; i < faces.size(); i++) {
     stbi_image_free(data);
 }
 ```
-Pour le rendu, il y a deux choses importantes :
-- On retire la translation de la matrice de vue.
-- On change la fonction de profondeur à GL_LEQUAL pour être sûr que le ciel s'affiche bien au fond.
+For rendering, there are two important things:
+- I remove the translation from the view matrix.
+- I change the depth function to `GL_LEQUAL` to ensure the sky renders at the very back.
 ```cpp
 void Skybox::Draw(const glm::mat4& view, const glm::mat4& projection)
 {
@@ -341,34 +341,34 @@ void Skybox::Draw(const glm::mat4& view, const glm::mat4& projection)
     glDepthFunc(GL_LESS);
 }
 ```
-Et maintenant on a une Skybox!
+And just like that, we have a Skybox!
+
 ![Skybox Result](/assets/skybox_result.png)
 
 ## Deferred Rendering
 
-Le Deferred Rendering est le cœur de mon pipeline de rendu. Contrairement au rendu classique où l'on calcule la lumière 
-pour chaque objet au moment de le dessiner, le Deferred repose sur une séparation claire entre la 
-récupération des données géométriques et le calcul final de l'image. Cette architecture m'a permis 
-d'intégrer efficacement de nombreuses passes de rendu (Shadows, SSAO, Bloom) sans surcharger le GPU.
-![Deferred Overview](/assets/deferred_overview.png)
-Le but est simple : arrêter de calculer la lumière pour rien. Dans un rendu classique,
-on perd beaucoup de performances à éclairer des objets qui finissent cachés derrière d'autres. 
-Avec le G-Buffer (Geometry Buffer), on inverse la logique : on attend de savoir exactement quels 
-pixels sont visibles à l'écran, et on ne calcule l'éclairage que pour eux.
+Deferred Rendering is the heart of my rendering pipeline. Unlike classic Forward Rendering,
+where light is calculated for every object as it's drawn, Deferred Rendering relies on a clear 
+separation between gathering geometric data and the final image calculation. This architecture
+allowed me to efficiently integrate multiple render passes (Shadows, SSAO, Bloom) without overloading the GPU.
+
+![Deferred Overview](/assets/deferred_overview.png) [Image of deferred rendering pipeline vs forward rendering pipeline]
+
+The goal is simple: stop calculating lighting for nothing. In standard rendering,
+a lot of performance is wasted lighting objects that end up hidden behind others.
+With the G-Buffer (Geometry Buffer), we flip the logic: we wait until we know exactly 
+which pixels are visible on screen, and we calculate lighting only for those.
 
 ## Geometry Buffer
 
-Le G-Buffer est un ensemble de textures dans lesquelles on stocke les informations géométriques de la scène lors de la "Geometry Pass".
-Au lieu de dessiner une image finale, on remplit plusieurs buffers simultanément :
+The G-Buffer is a set of textures where we store the scene's geometric information during the "Geometry Pass".
+Instead of drawing a final image, we fill several buffers simultaneously:
 - Positions
-- Normales
+- Normals
 - Albedo (BaseColor)
 - Emissive
 
-Pour que cela fonctionne techniquement, j'ai créé une classe GBuffer. L'élément le plus important
-est l'initialisation des textures via une lambda createTex. Cela me permet de configurer proprement
-le MRT (Multiple Render Targets) en attachant chaque buffer (Position, Normale, Albedo, Emissive)
-à un slot spécifique.
+To make this work technically, I created a `GBuffer` class. The most important part is the texture initialization via a
 
 ```cpp
 auto createTex = [&](GLuint& id, const GLint internal, const GLenum type, const int attach) {
@@ -385,10 +385,10 @@ createTex(g_normal_, GL_RGBA16F, GL_FLOAT, 1);
 createTex(g_albedo_, GL_RGBA, GL_UNSIGNED_BYTE, 2);
 createTex(g_emissive_, GL_RGBA16F, GL_FLOAT, 3);
 ```
-Une autre méthode cruciale est BlitDepthToDefault. Comme le Deferred Rendering s'effectue sur un simple 
-Quad à la fin, on perdrait normalement les informations de profondeur. Cette fonction me permet de 
-copier le buffer de profondeur du G-Buffer vers le buffer par défaut du système. 
-Cela évite que la Skybox ou d'autres objets couvrent les voitures.
+Another crucial method is `BlitDepthToDefault`. Since Deferred Rendering is performed on
+a simple Quad at the end, we would normally lose the depth information.
+This function lets me copy the depth buffer from the G-Buffer to the default framebuffer.
+This prevents the Skybox or other objects from rendering on top of the cars.
 ```cpp
 void GBuffer::BlitDepthToDefault(const unsigned int width, unsigned int const height) const
 {
@@ -398,25 +398,27 @@ void GBuffer::BlitDepthToDefault(const unsigned int width, unsigned int const he
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 ```
-Voici le rendu de mes différents buffers tel qu'on peut les observer lors d'une capture sur RenderDoc :
-- Positions : Chaque pixel stocke ses coordonnées mondiales (XYZ).
+Here is what my various buffers look like when inspected in a RenderDoc capture:
+
+- **Positions**: Each pixel stores its world coordinates (XYZ).
 ![GBuffer Position](/assets/gbuffer_position.png)
-- Normales : L'orientation de chaque surface.
+
+- **Normals**: The orientation of every surface.
 ![GBuffer Normal](/assets/gbuffer_normal.png)
-- Albedo : Les couleurs brutes des textures.
+
+- **Albedo**: The raw texture colors.
 ![GBuffer Albedo](/assets/gbuffer_albedo.png)
-- Emissive : Uniquement les zones qui émettent de la lumière.
+
+- **Emissive**: Only the areas that emit light.
 ![GBuffer Emissive](/assets/gbuffer_emissive.png)
 
 ## Shadow Pass
 
-Avant d'attaquer le G-Buffer, je dois générer une Shadow Map pour calculer les ombres de ma lumière directionnelle.
-Le principe est de faire une passe de rendu du point de vue de la lumière pour stocker
-la profondeur de la scène dans une texture.
+Before tackling the G-Buffer, I need to generate a Shadow Map to calculate shadows for my directional light.
+The idea is to perform a render pass from the light's perspective to store the scene's depth in a texture.
 
-Dans ma classe ShadowMap, j'utilise un FBO avec uniquement un GL_DEPTH_ATTACHMENT.
-Comme je n'ai pas besoin de couleurs ici, je désactive explicitement les buffers 
-de lecture et d'écriture.
+In my `ShadowMap` class, I use an FBO with only a `GL_DEPTH_ATTACHMENT`.
+Since I don't need any color data here, I explicitly disable the read and draw buffers.
 ```cpp
 glGenFramebuffers(1, &fbo_);
 glGenTextures(1, &depth_map_texture_);
@@ -438,27 +440,28 @@ glReadBuffer(GL_NONE);
 
 glBindFramebuffer(GL_FRAMEBUFFER, 0);
 ```
-Pour une lumière directionnelle, j'utilise une projection orthographique. 
-La matrice lightSpaceMatrix combine cette projection avec une vue positionnée face à la scène.
+For a directional light, I use an orthographic projection. 
+The `lightSpaceMatrix` combines this projection with a view positioned facing the scene.
 ```cpp
 const glm::mat4 lightProjection = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, zNear, zFar);
 const glm::mat4 lightView = glm::lookAt(lightPos, target, glm::vec3(0.0f, 1.0f, 0.0f));
 light_space_matrix_ = lightProjection * lightView;
 ```
-Le shader est minimal. Il transforme les sommets directement dans l'espace de la lumière. Pas besoin de fragment shader complexe,
-OpenGL gère l'écriture de la profondeur automatiquement.
+The shader is minimal. It transforms vertices directly into light space. No need for a complex fragment shader;
+OpenGL handles depth writing automatically.
 ```cpp
 void main() {
     mat4 finalModel = useInstancing ? aInstanceMatrix : model;
     gl_Position = lightSpaceMatrix * finalModel * vec4(aPos, 1.0);
 }
 ```
-Voici à quoi ressemble cette texture de profondeur capturée depuis la source lumineuse
+Here is what the depth texture looks like when captured from the light source:
+
 ![Shadow Map](/assets/shadow_map.png)
-Une fois la texture de profondeur générée, je fais le calcul d'ombre dans mon fragment
-shader principal, deferred_lit.frag. Pour éviter le Shadow Acne (des bandes noires dues
-à l'imprécision du calcul), j'applique un Bias classique et un Normal Bias qui dépend
-de l'inclinaison de la face par rapport à la lumière.
+
+Once the depth texture is generated, I handle the shadow calculation in my main fragment shader, 
+`deferred_lit.frag`. To avoid Shadow Acne (black stripes caused by calculation imprecision), 
+I apply a standard Bias and a Normal Bias that depends on the face's angle relative to the light.
 ```cpp
 float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 fragPos) {
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -487,16 +490,21 @@ float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 fragPos) {
     return currentDepth - bias > pcfDepth ? 1.0 : 0.0;
 }
 ```
-Sur cette image, l'intensité de la lumière a été poussée pour bien voir les ombres. Sans aucun filtrage, 
-les bords s'arrêtent net et l'aspect est très pixelisé
+In this image, the light intensity was cranked up to really see the shadows. Without any filtering,
+the edges have a hard cutoff and look very pixelated.
+
 ![Shadow without PCF](/assets/shadow.png)
-Pour corriger ça, j'utilise le PCF. Le principe est de faire une "photo" des ombres
-autour du pixel actuel en échantillonnant une grille 3x3 dans la shadow map,
-puis de faire la moyenne. Cela crée un dégradé qui adoucit les contours.
+
+To fix this, I use PCF. The concept is to take a "snapshot" of the shadows around the current pixel
+by sampling a 3x3 grid in the shadow map, and then averaging the result. This creates a gradient that softens the outlines.
+
 ![Shadow with PCF](/assets/shadow_pcf.png)
-Même avec le PCF, on voit encore parfois une forme de grille dans l'ombre. Pour corriger ça, j'utilise un Poisson Disk.
-Au lieu de tester les pixels sur une grille carrée toute droite, j'utilise 16 points placés de 
-façon plus "aléatoire" mais bien répartis. Je me suis basé sur ce [LearnOpenGL](https://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/#poisson-sampling) pour l'implémentation.
+
+Even with PCF, you can sometimes still see a grid pattern in the shadows. 
+To address this, I use a Poisson Disk . Instead of testing pixels on a straight square grid, 
+I use 16 points placed in a more "random" but well-distributed way.
+I relied on this [LearnOpenGL](https://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/#poisson-sampling) 
+tutorial for the implementation.
 ```cpp
 vec2 poissonDisk[16] = vec2[](
     vec2( -0.94201624, -0.39906216 ),
@@ -517,9 +525,10 @@ vec2 poissonDisk[16] = vec2[](
     vec2( 0.14383161, -0.14100790 )
 );
 ```
-En multipliant une valeur aléatoire par 2π (6.28318530718), je génère un angle de rotation aléatoire.
-Cet angle sert à faire pivoter les 16 points du disque différemment pour chaque pixel.
-Cela permet de "mélanger" les samples. La fonction rand vient de cette [discussion Khronos](https://community.khronos.org/t/random-values/75728 ).
+By multiplying a random value by 2π (6.28318530718), I generate a random rotation angle.
+This angle serves to rotate the 16 points of the disk differently for each pixel.
+This helps "mix" the samples. The `rand` function comes from this 
+[Khronos discussion](https://community.khronos.org/t/random-values/75728 ).
 ```cpp
 float shadow = 0.0;
   vec2 texelSize = 1.0 / vec2(textureSize(shadowMap, 0));
@@ -538,23 +547,26 @@ float shadow = 0.0;
   }
   return shadow / 16.0;
 ```
-Voici le résultat final. L'ombre est maintenant beaucoup plus "smooth" et naturelle grâce au
-mélange du Poisson Disk et de la rotation aléatoire.
+Here is the final result. The shadow is now much smoother and looks way more natural thanks
+to the blend of Poisson Disk sampling and random rotation.
+
 ![Shadow with Poisson Sampling + Rotation](/assets/shadow_poisson.png)
 
 ## SSAO
 
-Pour ajouter de la profondeur à la scène, j'ai appris comment implémenté le SSAO (Screen Space Ambient Occlusion).
-Cette technique simule l'occultation de la lumière ambiante par la géométrie environnante.
-Elle crée des ombres de contact dans les coins, les creux, et surtout sous la voiture,
-ce qui permet de bien "ancrer" le modèle au sol. Voici un exemple si dessous :
-![SSAO example](/assets/ssao_example.png)
-Pour simplifier l'implémentation, j'ai créé une classe SSAO dédiée. Le rendu se fait en deux étapes : 
-une passe de calcul (qui génère l'occlusion brute) et une passe de flou (pour nettoyer le bruit).
+To add some depth to the scene, I learned how to implement SSAO (Screen Space Ambient Occlusion).
+This technique simulates how ambient light is blocked by surrounding geometry.
+It creates contact shadows in corners, crevices, and especially under the car,
+which really helps "ground" the model. Here is an example below:
 
-Je configure la première étape dans SSAO::Init, qui se charge d'appeler GenerateKernel et GenerateNoiseTexture.
-Le calcul repose sur un échantillonnage statistique. Plutôt que de tirer des rayons partout, je génère un Kernel 
-(hémisphère) de 64 échantillons orientés vers l'axe Z.
+![SSAO example](/assets/ssao_example.png)
+
+To simplify the implementation, I created a dedicated `SSAO` class. 
+The rendering happens in two stages: a calculation pass (which generates the raw occlusion) and a blur pass (to clean up the noise).
+
+I configure the first step in `SSAO::Init`, which handles calling `GenerateKernel` and `GenerateNoiseTexture`.
+The calculation relies on statistical sampling. Instead of casting rays everywhere,
+I generate a Kernel (a hemisphere) of 64 samples oriented towards the Z-axis.
 ```cpp
 void SSAO::GenerateKernel()
 {
@@ -580,9 +592,9 @@ void SSAO::GenerateKernel()
     }
 }
 ```
-Pour la texture de bruit de 4x4 pixels, je la génère ici procéduralement, mais on pourrait très
-bien utiliser une simple image de bruit chargée depuis le disque. La texture est en GL_REPEAT
-pour couvrir l'écran.
+For the 4x4 noise texture, I generate it procedurally here, 
+but you could totally use a simple noise image loaded from disk. 
+The texture is set to `GL_REPEAT` so it tiles over the entire screen.
 ```cpp
 std::uniform_real_distribution<float> random_floats(0.0, 1.0);
 std::default_random_engine generator;
@@ -600,13 +612,15 @@ for (unsigned int i = 0; i < 16; i++)
     ssao_noise.push_back(noise);
 }
 ```
-Une fois le Kernel et le bruit prêts, on passe au rendu.
-![SSAO Result 1](/assets/ssao_pass1.png)
-Mais souvenez-vous, le travail n'est pas fini. L'image brute est inexploitable à cause du bruit.
-Il nous reste la 2ème passe : le Flou (Blur).
+Once the Kernel and noise are ready to go, we move on to rendering.
 
-Dans la fonction de rendu, on voit bien l'enchaînement. Après avoir généré l'occlusion, 
-je binde directement le pipeline de flou (ssao_.Blur()) et je redessine le Quad par-dessus.
+![SSAO Result 1](/assets/ssao_pass1.png)
+
+But remember, the job isn't done yet. The raw image is pretty much unusable because of the noise.
+That leaves us with the 2nd pass: the Blur.
+
+In the render function, you can clearly see the sequence. After generating the occlusion, 
+I immediately bind the blur pipeline (`ssao_.Blur()`) and redraw the Quad on top.
 ```cpp
 void SceneSample::RenderSSAOPass(const glm::mat4& view, const glm::mat4& projection)
 {
@@ -621,9 +635,8 @@ void SceneSample::RenderSSAOPass(const glm::mat4& view, const glm::mat4& project
     ssao_.End();
 }
 ```
-Le shader de flou est très simple. Contrairement à un flou Gaussien (qu'on verra plus tard), 
-ici une simple moyenne suffit (Box Blur). Je parcours une grille de 4x4 texels 
-autour de la position actuelle, j'additionne les valeurs d'occlusion et je divise le tout par 16.
+The blur shader is super simple. Unlike a Gaussian blur (which we'll see later), here a simple average does the trick (Box Blur). 
+I iterate over a 4x4 texel grid around the current position, sum up the occlusion values, and divide the whole thing by 16.
 ```cpp
 vec2 texelSize = 1.0 / vec2(textureSize(ssaoInput, 0));
 float result = 0.0;
@@ -639,41 +652,42 @@ for (int x = -2; x < 2; ++x)
 
 FragColor = result / 16.0;
 ```
-Et voilà le résultat : le bruit a disparu pour laisser place à une occlusion douce et naturelle!
+And here is the result: the noise is gone, giving way to soft and natural occlusion!
+
 ![SSAO Result 2](/assets/ssao_pass2.png)
 
-## Light PBR
+## PBR Lighting
 
-Une fois les données du G-Buffer et du SSAO prêtes, on peut enfin calculer l'éclairage. L'une des étape
-à la fois cool niveau rendu et un peu plus complex a comprendre hehe...
+Once the G-Buffer and SSAO data are ready, we can finally calculate the lighting.
+This step is both cool to look at and a little bit more complex to wrap your head around, hehe...
 
-Au départ, j'ai implémenté les 3 types de lumière (Directionnel, Point, Spot) avec le modèle Blinn-Phong. C'est l'approche "classique" : 
-on additionne une composante Diffuse (la couleur de l'objet) et une composante Spéculaire
-(le reflet brillant). 
+Initially, I implemented the 3 light types (Directional, Point, Spot) using the Blinn-Phong model.
+This is the "classic" approach: you add a Diffuse component (the object's color) and a Specular component (the shiny reflection).
+
 ![Halfway example](/assets/halfway.png)
-Le Half-way Vector (un vecteur médian entre la direction de la vue et celle
-de la lumière) permet d'avoir le reflet spéculaire beaucoup plus vite 
-qu'un calcul de réflexion physique complet.
+
+The Half-way Vector (a vector halfway between the view direction and the light direction)
+allows us to get the specular reflection much faster than doing a full physical reflection calculation.
+
 ![Blinn-Phong example](/assets/blinn_phong.png)
-C'est deja pas mal, mais pyhsiquement parlant ce n'est pas très réaliste, afin d'avoir des voiture beaucoup
-plus crédible je suis passé au PBR (Physically Based Rendering) qui est une méthode de rendu plus modern.
 
-Pour obtenir ce réalisme, le PBR simule la surface des objets au niveau microscopique (Microfacets).
-Même si une surface parait lisse, au microscope, elle est irrégulière.
-Plus elle est "rugueuse", plus la lumière se disperse de manière chaotique.
+That's already not bad, but physically speaking, it's not very realistic. To get much more believable cars,
+I switched to PBR (Physically Based Rendering), which is a more modern rendering method.
 
-Pour piloter cela, on abandonne les vieilles textures "Specular Map" pour
-3 de textures physiques :
+To achieve this realism, PBR simulates the surface of objects at a microscopic level (Microfacets).
+Even if a surface looks smooth, under a microscope, it’s actually irregular.
+The "rougher" it is, the more chaotically the light scatters. 
 
-- Albedo : La couleur de base
-- Metallic : Est-ce du métal ou du plastique/bois ? (0.0 ou 1.0).
-- Roughness : L'état de surface (Lisse ou Rugueux).
+To control this, we ditch the old "Specular Maps" in favor of 3 physical textures:
 
-Note d'optimisation : J'ai appris que dans l'industrie, on combine souvent l'Ambient Occlusion,
-la Roughness et la Metallic dans une seule texture appelée "ARM" (Red, Green, Blue)
-pour économiser de la mémoire.
+- **Albedo**: The base color.
+- **Metallic**: Is it metal or plastic/wood? (0.0 or 1.0).
+- **Roughness**: The surface condition (Smooth or Rough).
 
-De mon côté, je les ai simplement stockées dans les canaux Alpha (.a) du G-Buffer :
+**Optimization note:** I learned that in the industry, they often combine
+Ambient Occlusion, Roughness, and Metallic into a single texture called "ARM" (Red, Green, Blue) to save memory. 
+
+On my end, I simply stored them in the Alpha channels (`.a`) of the G-Buffer:
 ```cpp
 gNormal.rgb = normalize(Normal);
 gNormal.a = useRoughnessMap ? texture(roughnessMap, TexCoords).r : 0.5;
@@ -681,33 +695,38 @@ gAlbedo.rgb = texture(diffuseMap, TexCoords).rgb;
 gAlbedo.a = useMetallicMap ? texture(metallicMap, TexCoords).r : 0.0;
     ```
 
-Avec le PBR, Tout repose sur l'équation de réflectance. C'est la formule mathématique qui somme toute 
-la lumière qui arrive pour calculer ce qui renvoie vers l'œil.
+With PBR, everything relies on the **Reflectance Equation**. It's the mathematical formula 
+that sums up all incoming light to calculate exactly how much is reflected back to the eye.
+
 ![Reflectance Equation](/assets/reflectance_equation.png)
-Le terme le plus important dans cette équation est le BRDF (fr​). 
-C'est lui qui décide comment la lumière réagit au contact de la surface. Dans mon moteur,
-j'utilise le standard de l'industrie : le Cook-Torrance BRDF.
 
-Ce modèle divise la lumière en deux parties distinctes :
-- La Diffuse (Lambert) : La partie "couleur" (réfraction interne).
-- La Spéculaire (Cook-Torrance) : La partie "reflet" (réflexion de surface).
+The most important term in this equation is the **BRDF** (`fr`).
+This determines how light reacts when it hits the surface. In my engine, I use the industry standard: the **Cook-Torrance BRDF**.
 
-L'équation complète du BRDF ressemble à ça :
+This model splits the light into two distinct parts:
+- **Diffuse** (Lambert): The "color" part (internal refraction).
+- **Specular** (Cook-Torrance): The "reflection" part (surface reflection).
+
+The complete BRDF equation looks like this:
+
 ![Cooke-Torrance BRDF](/assets/cook_torrance_brdf.png)
-Pour la partie Diffuse, c'est très simple, c'est juste la couleur divisée par PI : c/π.
-Pour la partie Spéculaire, c'est plus complexe. Elle utilise 3 fonctions physiques 
-(Distribution, Fresnel, Geometry) pour simuler les microfacettes.
-Je ne vais pas détailler les maths ici, mais pour les curieux, tout est expliqué en détail sur
-[LearnOpenGL/PBR/Theory](https://learnopengl.com/PBR/Theory)
-![Cook-Torrance Specular](/assets/specular.png)
-Au final, quand on remplace fr​ dans l'équation de base, on obtient la formule complète que mon
-shader résout pour chaque lumière :
-![Reflectance Equation with Cook-Torrance](/assets/reflectance_equation_cook_torrance.png)
-Pour traduire ces maths en code, on retrouve exactement la structure de l'équation dans la
-boucle de lumière. On calcule les termes D, F, G pour le spéculaire, et on respecte la
-conservation de l'énergie en ajustant la diffuse (kD) en fonction du spéculaire (kS).
 
-Voici l'extrait du Fragment Shader qui gère une lumière :
+For the **Diffuse** part, it's super simple: it's just the color divided by PI (`c / PI`).
+The **Specular** part is more complex. It uses 3 physical functions (Distribution, Fresnel, Geometry) to simulate the microfacets.
+I won't go into the math details here, but for the curious, everything is explained in depth 
+on [LearnOpenGL/PBR/Theory](https://learnopengl.com/PBR/Theory).
+
+![Cook-Torrance Specular](/assets/specular.png)
+
+In the end, when we plug `fr` into the base equation, we get the full formula that my shader solves for every single light:
+
+![Reflectance Equation with Cook-Torrance](/assets/reflectance_equation_cook_torrance.png)
+
+To translate this math into code, you can see the equation's structure mirrored exactly in the lighting loop. 
+We calculate the D, F, and G terms for the specular component, and we respect the conservation
+of energy by adjusting the diffuse (`kD`) based on the specular (`kS`).
+
+Here is the snippet from the Fragment Shader that handles a light:
 
 ```cpp
 vec3 L = normalize(lights[i].position - fragPos);
@@ -735,25 +754,29 @@ Lo += (kD * albedo / PI + specular) * radiance * NdotL;
 ```
 ## Light IBL
 
-Ok, avec ça, on a la base du PBR. Mais il manque un truc essentiel pour que ça claque vraiment.
-Pour l'instant, notre Diffuse se résume juste à c/π, et le métal ne reflète rien du tout.
+Okay, with that, we have the PBR basics. But we're missing one essential thing to really make it pop.
+Right now, our Diffuse just boils down to `c / PI`, and metal doesn't reflect anything at all.
 
-C'est là qu'intervient l'IBL (Image Based Lighting). L'idée est d'utiliser la Skybox HDR comme une 
-source de lumière géante. Au lieu d'avoir juste une lampe ponctuelle à une position précise, 
-on considère que chaque pixel du ciel émet de la lumière.
+This is where IBL (Image Based Lighting) comes in. The idea is to use the HDR Skybox as a giant light source.
+Instead of just having a point light at a specific position, we consider that every pixel of the sky emits light.
+
 ![IBL example](/assets/ibl_example.png)
-Pour résoudre l'intégrale de lumière avec cette infinité de sources lumineuses,
-on commence par simplifier l'équation. On sépare le calcul en deux parties distinctes :
-la Diffuse et la Spéculaire.
-![IBL 2 Part formula](/assets/ibl_two_parts.png)
-La partie jaune représente l'intégrale de la Diffuse, et la partie rose celle du Spéculaire. 
-En les séparant, cela nous permet de résoudre d'abord la partie Diffuse (Irradiance) indépendamment.
-Vous pouvez voir les détails mathématiques ici [LearnOpenGL/PBR/IBL/Diffuse-irradiance](https://learnopengl.com/PBR/IBL/Diffuse-irradiance)
 
-Pour faire fonctionner cette équation, il nous faut 3 textures spécifiques :
-- Irradiance Map : Une version très floue de la skybox pour la lumière diffuse.
-- Prefilter Map : La skybox stockée avec différents niveaux de flou dans les mipmaps
-- BRDF LUT (Look Up Table) : C'est la fameuse texture "rouge et verte". Elle contient les valeurs pré-calculées de l'échelle (Scale) et du décalage (Bias) du BRDF.
+To solve the light integral with this infinite number of light sources, we start by simplifying the equation.
+We split the calculation into two distinct parts: the Diffuse and the Specular.
+
+![IBL 2 Part formula](/assets/ibl_two_parts.png)
+
+The yellow part represents the Diffuse integral, and the pink part the Specular one.
+By separating them, it allows us to first solve the Diffuse part (Irradiance) independently.
+You can see the mathematical details here
+[LearnOpenGL/PBR/IBL/Diffuse-irradiance](https://learnopengl.com/PBR/IBL/Diffuse-irradiance) 
+
+To make this equation work, we need 3 specific textures:
+- **Irradiance Map**: A very blurry version of the skybox for diffuse light.
+- **Prefilter Map**: The skybox stored with different blur levels in the mipmaps.
+- **BRDF LUT** (Look Up Table): This is the famous "red and green" texture.
+It contains the pre-calculated Scale and Bias values of the BRDF.
 <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0' }}>
   <img 
     src="/assets/ibl_brdf_lut.png" 
@@ -761,21 +784,18 @@ Pour faire fonctionner cette équation, il nous faut 3 textures spécifiques :
     style={{ maxWidth: '300px', width: '100%', height: 'auto' }} 
   />
 </div>
-
-Calculer tout ça en temps réel serait beaucoup trop lourd. 
-J'ai donc généré ces textures Offline (à l'avance) en utilisant cmft Studio. 
-Je lui donne ma Skybox HDR, et il me sort l'Irradiance et le Prefilter .hdr.
+Calculating all of this in real-time would be way too heavy. So, I generated these textures Offline 
+(in advance) using cmft Studio. I feed it my HDR Skybox, and it outputs the Irradiance and Prefilter `.hdr` files.
 <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', alignItems: 'center' }}>
   <img src="/assets/ibl_skybox.png" alt="IBL Skybox" style={{ maxWidth: '33%', height: 'auto' }} />
   <img src="/assets/ibl_prefilter.png" alt="IBL Prefilter" style={{ maxWidth: '33%', height: 'auto' }} />
   <img src="/assets/ibl_irradiance.png" alt="IBL Irradiance" style={{ maxWidth: '33%', height: 'auto' }} />
 </div>
-Pour la Diffuse, c'est direct, on tape dans l'Irradiance Map. 
-Pour la Spéculaire, c'est là qu'on applique le Split Sum. On récupère la lumière via textureLod
-et on mixe le tout avec les valeurs de la LUT.
+For the Diffuse, it's straightforward: we sample from the Irradiance Map.
+For the Specular, that's where we apply the Split Sum. We retrieve the light via `textureLod` 
+and mix it all with the values from the LUT. 
 
-Une fois qu'on a cet éclairage ambiant complet, il suffit de l'ajouter au résultat
-des lumières directes (Lo) et de l'émissive.
+Once we have this full ambient lighting, we just add it to the direct lighting result (`Lo`) and the emissive.
 ```cpp
 // --- IBL DIFFUSE ---
 vec2 uvIrradiance = SampleSphericalMap(N);
@@ -794,53 +814,54 @@ specular *= (1.0 - roughness);
 
 vec3 ambient = (kD * diffuse + specular) * ao;
 ```
-Et voilà le résultat final sur la voiure (Boost)
+And here is the final result on the car (Boost)
+
 ![IBL Result](/assets/ibl_result.png)
 
 ## Framebuffer
 
-Pour rendre possible le Deferred Rendering, le Post-Processing ou même la génération de l'IBL,
-je ne peux pas dessiner directement à l'écran (le Backbuffer). J'ai besoin de dessiner "hors-écran".
-Pour éviter de réécrire la configuration OpenGL à chaque fois, j'utilise une abstraction common::Framebuffer. 
-Elle gère automatiquement :
-- La création des textures.
-- L'attachement au Framebuffer Object (FBO).
-- La gestion du Depth/Stencil
+To make Deferred Rendering, Post-Processing, or even IBL generation possible,
+I can't draw directly to the screen (the Backbuffer). I need to draw "off-screen".
+To avoid rewriting the OpenGL configuration every time, I use a `common::Framebuffer` abstraction.
+It automatically handles:
+- Texture creation.
+- Attaching to the Framebuffer Object (FBO).
+- Depth/Stencil management.
 
-Tout le setup se fait dans common::Framebuffer::Load, où la
-création des textures et surtout l'activation du MRT (Multiple Render Targets) est gérer.
-C'est ce qui permet d'écrire dans gPosition, gNormal et gAlbedo en même temps.
-Ça tient en deux appels :
+The whole setup happens in `common::Framebuffer::Load`, where texture creation and especially
+the activation of MRT (Multiple Render Targets) is handled.
+This is what allows writing to `gPosition`, `gNormal`, and `gAlbedo` at the same time.
+It comes down to two calls:
 ```cpp
 glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, target, texture_id, 0);
 glDrawBuffers(attachment_count, attachments_list.data());
 ```
-Dernière étape du pipeline : le rendu sur un Screen Quad. Une fois toute la géométrie calculée, 
-au lieu d'afficher l'image directement, je la projette sur un simple quad 
-qui recouvre tout l'écran. J'ai pu y ajouté plusieurs filtre différent (Grayscale, Inverse, Sharpen)
+Final step of the pipeline: rendering to a Screen Quad. Once all the geometry is calculated,
+instead of displaying the image directly, I project it onto a simple quad that covers the entire screen. 
+I added several different filters (Grayscale, Inverse, Sharpen).
 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', justifyContent: 'center' }}> <div style={{ width: '45%', textAlign: 'center' }}> <img src="/assets/fb_normal.png" alt="Normal" style={{ width: '100%', height: 'auto' }} /> <p><strong>Normal</strong></p> </div> <div style={{ width: '45%', textAlign: 'center' }}> <img src="/assets/fb_grayscale.png" alt="Grayscale" style={{ width: '100%', height: 'auto' }} /> <p><strong>Grayscale</strong></p> </div> <div style={{ width: '45%', textAlign: 'center' }}> <img src="/assets/fb_inverse.png" alt="Inverse" style={{ width: '100%', height: 'auto' }} /> <p><strong>Inverse</strong></p> </div> <div style={{ width: '45%', textAlign: 'center' }}> <img src="/assets/fb_sharpen.png" alt="Sharpen" style={{ width: '100%', height: 'auto' }} /> <p><strong>Sharpen</strong></p> </div> </div>
 
 ## HDR + Bloom
 
-Par défaut, un écran standard (LDR) et OpenGL clampent les couleurs entre 0.0 et 1.0.
-Le problème, c'est qu'avec le PBR, le soleil ou des reflets métalliques peuvent
-avoir des intensités de 10.0, 50.0 ou plus. Si on coupe tout à 1.0, 
-on perd toute la nuance des hautes lumières.
+By default, a standard screen (LDR) and OpenGL clamp colors between 0.0 and 1.0.
+The problem is that with PBR, the sun or metallic reflections can have intensities of 10.0, 50.0, or more. 
+If we clamp everything at 1.0, we lose all the nuance in the highlights. 
 
-En utilisant un Framebuffer avec un format de couleur flottant (GL_RGBA16F). 
-Cela permet à la carte graphique de stocker des valeurs bien supérieures à 1.0 sans les perdre.
-Dans mon abstraction HDRBuffer, j'initialise ce buffer spécial et j'active le MRT 
-(Multiple Render Targets) pour extraire la brillance en même temps :
+I use a Framebuffer with a floating point color format (`GL_RGBA16F`).
+This allows the graphics card to store values well above 1.0 without losing them.
+In my `HDRBuffer` abstraction, I initialize this special buffer and enable MRT (Multiple Render Targets) 
+to extract the brightness at the same time:
 ```cpp
 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
 constexpr unsigned int attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
 glDrawBuffers(2, attachments);
 ```
-Vu que nos écrans ne peuvent pas afficher physiquement une valeur de 10.0, 
-on doit convertir l'image HDR vers du LDR (0.0 - 1.0) à la toute fin du pipeline. 
-C'est le Tone Mapping. J'utilise l'Exposure Tone Mapping.
-Ensuite, il ne faut pas oublier la Gamma Correction. Les calculs physiques se font
-en espace linéaire, mais on attends (oeil humain et écrans) une courbe Gamma (puissance 2.2).
+Since our screens physically cannot display a value of 10.0, we must convert the HDR 
+image to LDR (0.0 - 1.0) at the very end of the pipeline.
+This is **Tone Mapping**. I use Exposure Tone Mapping. 
+
+Next, we must not forget **Gamma Correction**. Physical calculations are done in linear space, 
+but we (human eye and screens) expect a Gamma curve (power 2.2).
 ```cpp
 // post_process.frag
 void main()
@@ -855,13 +876,14 @@ void main()
     FragColor = vec4(result, 1.0);
 }
 ```
-Le Bloom, c'est l'effet de halo lumineux autour des objets très brillants. 
-Ça donne l'illusion que la lumière est tellement forte qu'elle "bave" sur la caméra.
-![Bloom example](/assets/bloom_example.jpg)
-Afin d'avoir du bloom je le fais en 3 étapes :
+Bloom is the glowing halo effect around very bright objects.
+It gives the illusion that the light is so strong it "bleeds" into the camera.
 
-1. Dans le shader PBR principal, pendant qu'on dessine la scène, 
-on sépare les pixels qui dépassent une certaine luminosité (Threshold). 
+![Bloom example](/assets/bloom_example.jpg)
+
+To achieve bloom, I do it in 3 steps:
+
+1. In the main PBR shader, while rendering the scene, we separate pixels that exceed a certain brightness (Threshold).
 ```cpp
 // deferred_lit.frag
 FragColor = vec4(result, 1.0);
@@ -869,10 +891,10 @@ FragColor = vec4(result, 1.0);
 float brightness = dot(result, vec3(0.2126, 0.7152, 0.0722));
 BrightColor = brightness > 1.0 ? vec4(result, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);
 ```
-2. Ajouter le [Gaussian Blur](https://en.wikipedia.org/wiki/Gaussian_blur), je prend la texture "BrightColor" et on la floute énormément. 
-Pour optimiser, au lieu de faire un gros flou en une fois, j'utilise un Ping-Pong Rendering : 
-je floute horizontalement, puis verticalement, plusieurs fois de suite. 
-C'est géré par ma classe Bloom qui alterne entre deux Framebuffers :
+2. Add [Gaussian Blur](https://en.wikipedia.org/wiki/Gaussian_blur):
+I take the "BrightColor" texture and blur it heavily. To optimize, instead of doing one massive blur in a single go, 
+I use Ping-Pong Rendering:  I blur horizontally, then vertically, multiple times in succession.
+This is managed by my `Bloom` class which alternates between two Framebuffers:
 ```cpp
 // graphics::Bloom::RenderBloom
 bool horizontal = true;
@@ -886,8 +908,8 @@ for (int i = 0; i < amount; i++)
     horizontal = !horizontal;
 }
 ```
-3. Combinaison Enfin, dans le shader de post-process final, on additionne simplement 
-l'image HDR originale avec l'image floutée (Bloom). C'est là que tout se réunit.
+3. Combination Finally, in the final post-process shader, we simply add the original HDR image
+with the blurred image (Bloom). This is where it all comes together.
 ```cpp
 // post_process.frag
 vec3 hdrColor = texture(scene, TexCoords).rgb;
@@ -895,30 +917,30 @@ vec3 bloomColor = texture(bloomBlur, TexCoords).rgb;
 
 hdrColor += bloomColor; 
 ```
-Maintenant comparons le résultat sans et avec le bloom!
+Now let's compare the result without and with bloom!
 <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', alignItems: 'flex-start' }}> <div style={{ width: '48%', textAlign: 'center' }}> <img src="/assets/bloom_disable.png" alt="Bloom Disabled" style={{ width: '100%', height: 'auto' }} /> <p><strong>Bloom OFF</strong></p> </div> <div style={{ width: '48%', textAlign: 'center' }}> <img src="/assets/bloom_enable.png" alt="Bloom Enabled" style={{ width: '100%', height: 'auto' }} /> <p><strong>Bloom ON</strong></p> </div> </div>
 
 ## Emission
 
-Petit bonus, j'ai ajouté de l'Emission sur mes modèles. 
-C'est ce qui permet à certaines parties de l'objet de "briller" dans le noir
-comme des néons pour bien respecter la scene dans cars.
+A small bonus: I added Emission to my models.
+This allows certain parts of the object to "glow" in the dark like neon lights,
+to really fit the scene in *Cars*. 
 
-L'intégration était franchement simple. Côté chargement (Assimp), 
-il suffisait de récupérer la texture correspondante :
+The integration was honestly simple. On the loading side (Assimp), I just had to retrieve the corresponding texture:
 ```cpp
 LoadTex(aiTextureType_EMISSIVE, m.emissiveMap);
 ```
-Ensuite, je la stocke dans mon G-Buffer. 
-Je multiplie la couleur par une emissiveStrength pour pouvoir contrôler l'intensité du "glow" :
+Next, I store it in my G-Buffer. 
+I multiply the color by an `emissiveStrength` to be able to control the intensity of the "glow":
 ```cpp
 // gbuffer.frag
 gEmissive = useEmissiveMap ? texture(emissiveMap, TexCoords).rgb * emissiveStrength : vec3(0.0);
 ```
-Et enfin, dans la passe d'éclairage différé (deferred_lit.frag), 
-c'est de la lumière pure. Donc je l'ajoute simplement au résultat final, sans calcul d'ombrage. 
-C'est là que le Bloom fait tout le travail : comme l'intensité est élevée, 
-le calcul de brightness va capturer ces pixels et créer le halo lumineux.
+And finally, in the deferred lighting pass (`deferred_lit.frag`), it acts as pure light.
+So I simply add it to the final result, without any shadow calculation.
+
+This is where Bloom does all the work: since the intensity is high, the brightness
+calculation will capture these pixels and create the glowing halo.
 ```cpp
 // deferred_lit.frag
 vec3 emissive = texture(gEmissive, TexCoords).rgb;
@@ -931,28 +953,30 @@ FragColor = vec4(result, 1.0);
 float brightness = dot(result, vec3(0.2126, 0.7152, 0.0722));
 BrightColor = brightness > 1.0 ? vec4(result, 1.0) : vec4(0.0, 0.0, 0.0, 1.0);
 ```
-Voici une emissive map que j'ai fais moi meme pour la voiture DJ (La bleu) qui ma
-pris 2H30 à faire (vraiment)
+Here is an emissive map I made myself for the DJ car (the blue one) which took me 2.5 hours to make (really).
+
 ![DJ Emissive](/assets/dj_emissive.png)
-Puis le résultat finale dont je suis fière!
+
+Then the final result which I am proud of!
+
 ![DJ Emissive Result](/assets/dj_emissive_result.png)
 
 # Conclusion
 
-Voilà ! On a à peu près fait le tour des techniques utilisées dans ma scène 3D finale. Durant ce module,
-j'ai eu pas mal de moments d'incompréhension car je n'ai pas l'habitude d'être aussi bas niveau avec le GPU, 
-mais petit à petit, on s'y fait. J'ai aussi pu voir comment utiliser le GPU pour des calculs autres que le rendu pur (via CUDA).
+That’s it! We’ve pretty much covered all the techniques used in my final 3D scene. 
+Throughout this module, I had quite a few moments of confusion because I’m not used to working 
+at such a low level with the GPU, but little by little, you get used to it. 
+I also got to see how the GPU can be used for calculations other than pure rendering (via CUDA).
 
-C'était à la fois frustrant et gratifiant de voir un résultat qui marche. 
-Personnellement, j'ai trouvé très intéressant de toucher un peu à OpenGL. 
-J'ai appris beaucoup de choses qui m'ont permis de mieux comprendre le fonctionnement des moteurs graphiques,
-même si aujourd'hui les gros moteurs utilisent plutôt DX11, DX12 ou Vulkan.
+It was both frustrating and rewarding to see a working result. Personally, I found it very interesting to dive into OpenGL.
+I learned a lot of things that helped me better understand how graphics engines work,
+even though today’s big engines tend to use DX11, DX12, or Vulkan.
 
-L'expérience était cool ! Avoir essayé de faire une petite scène sur le thème de Cars est ce qui m'a le plus motivé sur ce module.
-S'il manque quelque chose à ma scène, ce serait les ombres pour les Point Lights et pourquoi pas le Cascaded Shadow Mapping.
-Mais sinon, je reste très fier de cette scène 3D ! Maintenant, quand je jouerai à n'importe quel AAA,
-je remarquerai toujours les techniques que j'ai apprises ici.
+The experience was cool! Trying to create a small scene themed after *Cars* is what motivated
+me the most in this module. If something is missing from my scene, it would be shadows for Point Lights 
+and maybe Cascaded Shadow Mapping. But overall, I remain very proud of this 3D scene! Now, whenever I play any AAA game,
+I’ll always notice the techniques I learned here.
 
-N'hésitez pas à checker mon [Github](https://github.com/SAE-Geneve/compgraphsample-Jemow) pour voir l'implémentation plus en détail,
+Feel free to check out my [Github](https://github.com/SAE-Geneve/compgraphsample-Jemow) to see the implementation in more detail.
 
-Sur ce, merci pour votre lecture !
+With that, thanks for reading!
