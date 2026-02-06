@@ -302,6 +302,56 @@ buffer (évidemment on peut en instancier bien plus que 4 😅).
 ![Instancing RenderDoc example](/assets/instancing_renderdoc.png)
 C'est cette technique qui permet de garder un framerate élevé même avec une scène chargée d'objets répétitifs.
 
+## Cubemap
+
+Avant d'attaquer le gros du moteur, il me fallait un environnement pour placer ma voiture. 
+J'ai implémenté une Skybox. Le principe est simple : on dessine un cube géant autour de la caméra, 
+et on applique une texture sur chaque face.
+
+En OpenGL, on utilise une GL_TEXTURE_CUBE_MAP. C'est un type de texture spécial qui gère 6 faces
+(Right, Left, Top, Bottom, Back, Front) comme une seule entité.
+![Cubemap example](/assets/cubemap.png)
+Pour le chargement dans l'abstraction common::Texture, l'astuce consiste à boucler sur les fichiers et à utiliser 
+l'enum GL_TEXTURE_CUBE_MAP_POSITIVE_X. Comme les enums des 6 faces se suivent en mémoire dans OpenGL,
+on peut simplement incrémenter i pour cibler la face suivante.
+```cpp
+glGenTextures(1, &get().texture_name);
+glBindTexture(GL_TEXTURE_CUBE_MAP, get().texture_name);
+
+for (size_t i = 0; i < faces.size(); i++) {
+    int width, height, channels;
+    unsigned char* data = stbi_load(std::string(faces[i]).c_str(), &width, &height, &channels, 0);
+
+    const GLenum format = (channels == 3) ? GL_RGB : GL_RGBA;
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + static_cast<GLenum>(i), 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+    stbi_image_free(data);
+}
+```
+Pour le rendu, il y a deux choses importantes :
+- On retire la translation de la matrice de vue.
+- On change la fonction de profondeur à GL_LEQUAL pour être sûr que le ciel s'affiche bien au fond.
+```cpp
+void Skybox::Draw(const glm::mat4& view, const glm::mat4& projection)
+{
+    glDepthFunc(GL_LEQUAL);
+    glDisable(GL_CULL_FACE);
+
+    pipeline_.Bind();
+    auto viewNoTranslation = glm::mat4(glm::mat3(view));
+
+    pipeline_.SetMat4("view", glm::value_ptr(viewNoTranslation));
+    pipeline_.SetMat4("projection", glm::value_ptr(projection));
+    pipeline_.SetTexture("skybox", texture_, 0);
+    pipeline_.SetFloat("skyboxIntensity", intensity_);
+
+    cube_mesh_.Draw();
+
+    glDepthFunc(GL_LESS);
+}
+```
+Et maintenant on a une Skybox!
+![Skybox Result](/assets/skybox_result.png)
+
 ## Deferred Rendering
 
 Le Deferred Rendering est le cœur de mon pipeline de rendu. Contrairement au rendu classique où l'on calcule la lumière 
@@ -600,7 +650,7 @@ FragColor = result / 16.0;
 Et voilà le résultat : le bruit a disparu pour laisser place à une occlusion douce et naturelle!
 ![SSAO Result 2](/assets/ssao_pass2.png)
 
-## Light PBR + IBL
+## Light PBR
 
 Une fois les données du G-Buffer et du SSAO prêtes, on peut enfin calculer l'éclairage. L'une des étape
 à la fois cool niveau rendu et un peu plus complex a comprendre hehe...
@@ -615,6 +665,86 @@ qu'un calcul de réflexion physique complet.
 ![Blinn-Phong example](/assets/blinn_phong.png)
 C'est deja pas mal, mais pyhsiquement parlant ce n'est pas très réaliste, afin d'avoir des voiture beaucoup
 plus crédible je suis passé au PBR (Physically Based Rendering) qui est une méthode de rendu plus modern.
+
+Pour obtenir ce réalisme, le PBR simule la surface des objets au niveau microscopique (Microfacets).
+Même si une surface parait lisse, au microscope, elle est irrégulière.
+Plus elle est "rugueuse", plus la lumière se disperse de manière chaotique.
+
+Pour piloter cela, on abandonne les vieilles textures "Specular Map" pour
+3 de textures physiques :
+
+- Albedo : La couleur de base
+- Metallic : Est-ce du métal ou du plastique/bois ? (0.0 ou 1.0).
+- Roughness : L'état de surface (Lisse ou Rugueux).
+
+Note d'optimisation : J'ai appris que dans l'industrie, on combine souvent l'Ambient Occlusion,
+la Roughness et la Metallic dans une seule texture appelée "ARM" (Red, Green, Blue)
+pour économiser de la mémoire.
+
+De mon côté, je les ai simplement stockées dans les canaux Alpha (.a) du G-Buffer :
+```cpp
+gNormal.rgb = normalize(Normal);
+gNormal.a = useRoughnessMap ? texture(roughnessMap, TexCoords).r : 0.5;
+gAlbedo.rgb = texture(diffuseMap, TexCoords).rgb;
+gAlbedo.a = useMetallicMap ? texture(metallicMap, TexCoords).r : 0.0;
+    ```
+
+Avec le PBR, Tout repose sur l'équation de réflectance. C'est la formule mathématique qui somme toute 
+la lumière qui arrive pour calculer ce qui renvoie vers l'œil.
+![Reflectance Equation](/assets/reflectance_equation.png)
+Le terme le plus important dans cette équation est le BRDF (fr​). 
+C'est lui qui décide comment la lumière réagit au contact de la surface. Dans mon moteur,
+j'utilise le standard de l'industrie : le Cook-Torrance BRDF.
+
+Ce modèle divise la lumière en deux parties distinctes :
+- La Diffuse (Lambert) : La partie "couleur" (réfraction interne).
+- La Spéculaire (Cook-Torrance) : La partie "reflet" (réflexion de surface).
+
+L'équation complète du BRDF ressemble à ça :
+![Cooke-Torrance BRDF](/assets/cook_torrance_brdf.png)
+Pour la partie Diffuse, c'est très simple, c'est juste la couleur divisée par PI : c/π.
+Pour la partie Spéculaire, c'est plus complexe. Elle utilise 3 fonctions physiques 
+(Distribution, Fresnel, Geometry) pour simuler les microfacettes.
+Je ne vais pas détailler les maths ici, mais pour les curieux, tout est expliqué en détail sur
+[LearnOpenGL/PBR/Theory](https://learnopengl.com/PBR/Theory)
+![Cook-Torrance Specular](/assets/specular.png)
+Au final, quand on remplace fr​ dans l'équation de base, on obtient la formule complète que mon
+shader résout pour chaque lumière :
+![Reflectance Equation with Cook-Torrance](/assets/reflectance_equation_cook_torrance.png)
+Pour traduire ces maths en code, on retrouve exactement la structure de l'équation dans la
+boucle de lumière. On calcule les termes D, F, G pour le spéculaire, et on respecte la
+conservation de l'énergie en ajustant la diffuse (kD) en fonction du spéculaire (kS).
+
+Voici l'extrait du Fragment Shader qui gère une lumière :
+
+```cpp
+vec3 L = normalize(lights[i].position - fragPos);
+vec3 V = normalize(viewPos - fragPos);
+vec3 H = normalize(V + L); // Half-way vector
+
+// (Cook-Torrance)
+float NDF = DistributionGGX(N, H, roughness);   // D
+float G   = GeometrySmith(N, V, L, roughness);
+vec3  F   = fresnelSchlick(max(dot(H, V), 0.0), F0);
+
+// Calcul du Spéculaire
+vec3 numerator    = NDF * G * F;
+float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0);
+vec3 specular     = numerator / denominator;
+
+// Conservation d'energie
+vec3 kS = F;
+vec3 kD = vec3(1.0) - kS;
+kD *= 1.0 - metallic; 
+
+// Reflectance Equation
+float NdotL = max(dot(N, L), 0.0);
+Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+```
+## Light IBL
+
+Ok, avec ça, on a la base du PBR. Mais il manque un truc essentiel pour que ça claque vraiment.
+Pour l'instant, notre Diffuse se résume juste à c/π, et le métal ne reflète rien du tout.
 
 
 # Conclusion
