@@ -222,7 +222,7 @@ est pré-calculé lors du Model::Load.
 Pour mettre cela en pratique, j'ai créé une classe Frustum très simple. 
 Elle contient les six plans de la pyramide de vue et possède une méthode IsOnFrustum. 
 Cette fonction prend l'AABB d'un modèle et sa modelMatrix pour déterminer
-instantanément si l'objet est visible ou non.
+si l'objet est visible ou non.
 ```cpp
 class Frustum
 {
@@ -309,11 +309,12 @@ pour chaque objet au moment de le dessiner, le Deferred repose sur une séparati
 récupération des données géométriques et le calcul final de l'image. Cette architecture m'a permis 
 d'intégrer efficacement de nombreuses passes de rendu (Shadows, SSAO, Bloom) sans surcharger le GPU.
 ![Deferred Overview](/assets/deferred_overview.png)
+Le but est simple : arrêter de calculer la lumière pour rien. Dans un rendu classique,
+on perd beaucoup de performances à éclairer des objets qui finissent cachés derrière d'autres. 
+Avec le G-Buffer (Geometry Buffer), on inverse la logique : on attend de savoir exactement quels 
+pixels sont visibles à l'écran, et on ne calcule l'éclairage que pour eux.
 
 ## Geometry Buffer
-
-L'objectif est d'éviter de calculer l'éclairage de pixels qui seront finalement cachés par d'autres objets devant eux. 
-Pour cela, on utilise un G-Buffer.
 
 Le G-Buffer est un ensemble de textures dans lesquelles on stocke les informations géométriques de la scène lors de la "Geometry Pass".
 Au lieu de dessiner une image finale, on remplit plusieurs buffers simultanément :
@@ -498,4 +499,122 @@ float shadow = 0.0;
 Voici le résultat final. L'ombre est maintenant beaucoup plus "smooth" et naturelle grâce au
 mélange du Poisson Disk et de la rotation aléatoire.
 ![Shadow with Poisson Sampling + Rotation](/assets/shadow_poisson.png)
+
+## SSAO
+
+Pour ajouter de la profondeur à la scène, j'ai appris comment implémenté le SSAO (Screen Space Ambient Occlusion).
+Cette technique simule l'occultation de la lumière ambiante par la géométrie environnante.
+Elle crée des ombres de contact dans les coins, les creux, et surtout sous la voiture,
+ce qui permet de bien "ancrer" le modèle au sol. Voici un exemple si dessous :
+![SSAO example](/assets/ssao_example.png)
+Pour simplifier l'implémentation, j'ai créé une classe SSAO dédiée. Le rendu se fait en deux étapes : 
+une passe de calcul (qui génère l'occlusion brute) et une passe de flou (pour nettoyer le bruit).
+
+Je configure la première étape dans SSAO::Init, qui se charge d'appeler GenerateKernel et GenerateNoiseTexture.
+Le calcul repose sur un échantillonnage statistique. Plutôt que de tirer des rayons partout, je génère un Kernel 
+(hémisphère) de 64 échantillons orientés vers l'axe Z.
+```cpp
+void SSAO::GenerateKernel()
+{
+    std::uniform_real_distribution<float> random_floats(0.0, 1.0);
+    std::default_random_engine generator;
+
+    for (int i = 0; i < 64; ++i)
+    {
+        glm::vec3 sample(
+            random_floats(generator) * 2.0 - 1.0,
+            random_floats(generator) * 2.0 - 1.0,
+            random_floats(generator)
+        );
+
+        sample = glm::normalize(sample);
+        sample *= random_floats(generator);
+
+        float scale = static_cast<float>(i) / 64.0;
+        scale = std::lerp(0.1f, 1.0f, scale * scale);
+        sample *= scale;
+
+        kernel_.push_back(sample);
+    }
+}
+```
+Pour la texture de bruit de 4x4 pixels, je la génère ici procéduralement, mais on pourrait très
+bien utiliser une simple image de bruit chargée depuis le disque. La texture est en GL_REPEAT
+pour couvrir l'écran.
+```cpp
+std::uniform_real_distribution<float> random_floats(0.0, 1.0);
+std::default_random_engine generator;
+
+std::vector<glm::vec4> ssao_noise;
+
+for (unsigned int i = 0; i < 16; i++)
+{
+    glm::vec4 noise(
+        random_floats(generator) * 2.0 - 1.0,
+        random_floats(generator) * 2.0 - 1.0,
+        0.0f,
+        0.0f
+    );
+    ssao_noise.push_back(noise);
+}
+```
+Une fois le Kernel et le bruit prêts, on passe au rendu.
+![SSAO Result 1](/assets/ssao_pass1.png)
+Mais souvenez-vous, le travail n'est pas fini. L'image brute est inexploitable à cause du bruit.
+Il nous reste la 2ème passe : le Flou (Blur).
+
+Dans la fonction de rendu, on voit bien l'enchaînement. Après avoir généré l'occlusion, 
+je binde directement le pipeline de flou (ssao_.Blur()) et je redessine le Quad par-dessus.
+```cpp
+void SceneSample::RenderSSAOPass(const glm::mat4& view, const glm::mat4& projection)
+{
+    g_buffer_.BindTextures();
+    
+    ssao_.BeginGen(projection, view);
+    quad_mesh_.Draw();
+    ssao_.End();
+
+    ssao_.Blur();
+    quad_mesh_.Draw();
+    ssao_.End();
+}
+```
+Le shader de flou est très simple. Contrairement à un flou Gaussien (qu'on verra plus tard), 
+ici une simple moyenne suffit (Box Blur). Je parcours une grille de 4x4 texels 
+autour de la position actuelle, j'additionne les valeurs d'occlusion et je divise le tout par 16.
+```cpp
+vec2 texelSize = 1.0 / vec2(textureSize(ssaoInput, 0));
+float result = 0.0;
+
+for (int x = -2; x < 2; ++x)
+{
+    for (int y = -2; y < 2; ++y)
+    {
+        vec2 offset = vec2(float(x), float(y)) * texelSize;
+        result += texture(ssaoInput, TexCoords + offset).r;
+    }
+}
+
+FragColor = result / 16.0;
+```
+Et voilà le résultat : le bruit a disparu pour laisser place à une occlusion douce et naturelle!
+![SSAO Result 2](/assets/ssao_pass2.png)
+
+## Light PBR + IBL
+
+Une fois les données du G-Buffer et du SSAO prêtes, on peut enfin calculer l'éclairage. L'une des étape
+à la fois cool niveau rendu et un peu plus complex a comprendre hehe...
+
+Au départ, j'ai implémenté le modèle Blinn-Phong. C'est l'approche "classique" et peu coûteuse : 
+on additionne une composante Diffuse (la couleur de l'objet) et une composante Spéculaire
+(le reflet brillant). 
+![Halfway example](/assets/halfway.png)
+Le Half-way Vector (un vecteur médian entre la direction de la vue et celle
+de la lumière) permet d'avoir le reflet spéculaire beaucoup plus vite 
+qu'un calcul de réflexion physique complet.
+![Blinn-Phong example](/assets/blinn_phong.png)
+C'est deja pas mal, mais pyhsiquement parlant ce n'est pas très réaliste, afin d'avoir des voiture beaucoup
+plus crédible je suis passé au PBR (Physically Based Rendering) qui est une méthode de rendu plus modern.
+
+
 # Conclusion
