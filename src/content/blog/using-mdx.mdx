@@ -352,7 +352,7 @@ where light is calculated for every object as it's drawn, Deferred Rendering rel
 separation between gathering geometric data and the final image calculation. This architecture
 allowed me to efficiently integrate multiple render passes (Shadows, SSAO, Bloom) without overloading the GPU.
 
-![Deferred Overview](/assets/deferred_overview.png) [Image of deferred rendering pipeline vs forward rendering pipeline]
+![Deferred Overview](/assets/deferred_overview.png)
 
 The goal is simple: stop calculating lighting for nothing. In standard rendering,
 a lot of performance is wasted lighting objects that end up hidden behind others.
@@ -367,8 +367,12 @@ Instead of drawing a final image, we fill several buffers simultaneously:
 - Normals
 - Albedo (BaseColor)
 - Emissive
+- ARM
 
-To make this work technically, I created a `GBuffer` class. The most important part is the texture initialization via a
+To make this work technically, I created a `GBuffer` class. 
+The most important part is the texture initialization via a `createTex` lambda.
+This allows me to cleanly configure MRT (Multiple Render Targets) by attaching each buffer
+(Position, Normal, Albedo, Emissive) to a specific slot.
 
 ```cpp
 auto createTex = [&](GLuint& id, const GLint internal, const GLenum type, const int attach) {
@@ -684,16 +688,15 @@ To control this, we ditch the old "Specular Maps" in favor of 3 physical texture
 - **Metallic**: Is it metal or plastic/wood? (0.0 or 1.0).
 - **Roughness**: The surface condition (Smooth or Rough).
 
-**Optimization note:** I learned that in the industry, they often combine
-Ambient Occlusion, Roughness, and Metallic into a single texture called "ARM" (Red, Green, Blue) to save memory. 
-
-On my end, I simply stored them in the Alpha channels (`.a`) of the G-Buffer:
+I implemented a dedicated ARM texture (Ambient Occlusion, Roughness, Metallic).
+This allowed me to pack all three physical properties into the RGB channels of a single texture
 ```glsl
-gNormal.rgb = normalize(Normal);
-gNormal.a = useRoughnessMap ? texture(roughnessMap, TexCoords).r : 0.5;
-gAlbedo.rgb = texture(diffuseMap, TexCoords).rgb;
-gAlbedo.a = useMetallicMap ? texture(metallicMap, TexCoords).r : 0.0;
-    ```
+float ao = useAOMap ? texture(aoMap, TexCoords).r : 1.0;
+float roughness = useRoughnessMap ? texture(roughnessMap, TexCoords).r : 0.5;
+float metallic = useMetallicMap ? texture(metallicMap, TexCoords).r : 0.0;
+
+gARM = vec4(ao, roughness, metallic, 1.0);
+```
 
 With PBR, everything relies on the **Reflectance Equation**. It's the mathematical formula 
 that sums up all incoming light to calculate exactly how much is reflected back to the eye.
