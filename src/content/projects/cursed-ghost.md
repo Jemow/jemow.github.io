@@ -13,7 +13,7 @@ categories: [Game Jams]
 
 ## Gameplay
 
-(The body possessedd by the Player has a grayscale filter)
+(The body possessed by the Player has a grayscale filter)
 
 - Gameplay 1
 
