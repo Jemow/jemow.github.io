@@ -41,8 +41,8 @@ A good starting point for learning the basics. TModLoader provides base classes 
 One quirk: all animation sprites must be stacked vertically in a single image. I made a few weapons, a purple wand with visual effects, an oversized fast sword for fun, and one that spawns an explosion at the mouse position.
 
 <div style="display:flex; gap:12px;">
-  <img src="/src/assets/terraria/TModWeapons1.gif" alt="Swords Demonstration" style="width:50%; max-width:100%;" />
-  <img src="/src/assets/terraria/TModWeapons2.gif" alt="Explosion Demonstration" style="width:50%; max-width:100%;" />
+  <img src="/images/terraria/TModWeapons1.gif" alt="Swords Demonstration" style="width:50%; max-width:100%;" />
+  <img src="/images/terraria/TModWeapons2.gif" alt="Explosion Demonstration" style="width:50%; max-width:100%;" />
 </div>
 
 ## What I Learned
