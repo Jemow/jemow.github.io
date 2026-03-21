@@ -9,7 +9,7 @@ categories: [Mods]
 
 ## Overview
 
-My first dive into [TModLoader](https://store.steampowered.com/app/1281930/tModLoader/) modding for [Terraria](https://store.steampowered.com/app/105600/Terraria/). I explored the [Wiki](https://github.com/tModLoader/tModLoader/wiki) and [Official Documentation](https://docs.tmodloader.net/docs/stable/annotated.html), built three features from scratch — a Pokéball capture system, a custom boss, and new weapons — and learned how the game's XNA/MonoGame architecture works under the hood.
+My first dive into [TModLoader](https://store.steampowered.com/app/1281930/tModLoader/) modding for [Terraria](https://store.steampowered.com/app/105600/Terraria/). I explored the [Wiki](https://github.com/tModLoader/tModLoader/wiki) and [Official Documentation](https://docs.tmodloader.net/docs/stable/annotated.html), built three features from scratch, a Pokéball capture system, a custom boss, custom weapons and learned how the game's XNA/MonoGame architecture works under the hood.
 
 ## Boss
 
