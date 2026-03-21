@@ -26,7 +26,7 @@ I only had one sprite for the animation, which limited the polish. I also got cu
 
 ## Pokéball
 
-The feature I like the most. I implemented a throwable Pokéball that can capture any hostile mob. Once caught, a Pokéball item referencing a clone of that mob is dropped. Throwing it again spawns the mob back — no longer hostile and unable to touch you.
+The feature I like the most. I implemented a throwable Pokéball that can capture any hostile mob. Once caught, a Pokéball item referencing a clone of that mob is dropped. Throwing it again spawns the mob back, no longer hostile and unable to touch you.
 
 <video src="/videos/Pokeball1.mp4" controls playsinline></video>
 

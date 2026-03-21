@@ -7,7 +7,7 @@ updatedDate: 2026-03-21
 categories: [Mods]
 ---
 
-## Introduction
+## Overview
 
 This is my first Minecraft mod, built for Java Edition 1.21.5. I kept the scope simple: add 3 new types of TNT, each with a different explosion behaviour.
 
