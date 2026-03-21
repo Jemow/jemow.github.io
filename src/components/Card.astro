@@ -11,9 +11,10 @@ interface Props {
 		image?: ImageMetadata | string;
 	imageAlt?: string;
 	eyebrow?: string;
+	variant?: string;
 }
 
-const { title, href, description, date, image, imageAlt = '', eyebrow } = Astro.props as Props;
+const { title, href, description, date, image, imageAlt = '', eyebrow, variant } = Astro.props as Props;
 
 const baseDate = typeof date === 'string' ? new Date(date) : date;
 
@@ -28,7 +29,7 @@ const aProps = { href, 'aria-label': `Ver ${title}`, ...(isExternal ? { rel: 'no
 		<a class="sr-only" {...aProps}>Ver {title}</a>
 
 		{image && (
-			<figure class="lg:col-span-full relative overflow-hidden bg-[color-mix(in_oklab,var(--color-ink)_4%,var(--color-surface))]">
+			<figure class={`lg:col-span-full relative overflow-hidden bg-[color-mix(in_oklab,var(--color-ink)_4%,var(--color-surface))] ${variant === 'project' ? 'w-3/4' : ''}`}>
 				{typeof image === 'string' ? (
 					<img
 						src={image}
