@@ -33,7 +33,7 @@ So for each custom TNT type I followed the same pattern:
 
 <img src="/images/minecraft/TNTBoom.png" alt="BOOM TNT" width="800" style="max-width:100%" />
 
-## What did I learn
+## What I learned
 
 - The block/entity split in Minecraft's TNT system, and how to hook into it cleanly through inheritance.
 - How to override `explode()` to fully control explosion behaviour without touching vanilla code.

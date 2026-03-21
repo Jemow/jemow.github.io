@@ -36,7 +36,7 @@ The one thing I didn't finish: making captured mobs attack other hostile mobs. F
 
 ## Weapons
 
-A good starting point for learning the basics. TModLoader provides base classes like `ModItem`, `ModNPC`, and `ModPlayer` — modded variants of vanilla entities you extend to add your own behaviour.
+A good starting point for learning the basics. TModLoader provides base classes like `ModItem`, `ModNPC`, and `ModPlayer`. Modded variants of vanilla entities you extend to add your own behaviour.
 
 One quirk: all animation sprites must be stacked vertically in a single image. I made a few weapons, a purple wand with visual effects, an oversized fast sword for fun, and one that spawns an explosion at the mouse position.
 
