@@ -1,6 +1,6 @@
 ---
 title: Bloody Merry
-description: 'SAE Game Jam — "Dead Is Cool"'
+description: SAE Game Jam - "Dead Is Cool"
 pubDate: 2026-03-15
 heroImage: ../../assets/bloody_merry_bg.jpg
 updatedDate: 2026-03-18
