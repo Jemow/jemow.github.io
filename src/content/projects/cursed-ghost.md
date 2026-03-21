@@ -64,10 +64,10 @@ In the last stretch I was mostly rushing to get everything wrapped up, settings 
 ## Conclusion
 
 I'm really happy about the result, that was a fun Jam to participate!
-If you want to see in more detail how I made this game feel free to check my [Github](https://github.com/Jemow/From-The-Dead/tree/main)
+If you want to see in more detail how I made this game, feel free to check my [Github](https://github.com/Jemow/From-The-Dead/tree/main)
 
 ## What I Learned
 
 - Unity overall
-- Even when something is simple it can be fun
+- Even when something is simple it can works pretty well
 - Customizing the web version of the build (I just removed the footer)
