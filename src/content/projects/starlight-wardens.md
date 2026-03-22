@@ -1,6 +1,6 @@
 ---
 title: Starlight Wardens
-description: Space Shooter / C++ /First SFML Game
+description: Space Shooter / C++ / First SFML Game
 pubDate: 2026-03-22
 heroImage: ../../assets/starlight-wardens/SWLogo.png
 updatedDate: 2026-03-22
