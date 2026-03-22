@@ -11,6 +11,8 @@ categories: [Game Jams]
 
 This is a game made in less than one week for the [Chili Code Jam #4](https://itch.io/jam/-chili-code-jam-4). For this jam I made a fusion between math and a roguelike top-down arena shooter. The key feature is simple: the player can shoot bullets but can also shoot a laser beam, and the particular thing is that the player builds a mathematical function throughout the run, and the laser beam follows that function's trajectory! (I used [Desmos](https://www.desmos.com/calculator) a lot!)
 
+[Play on itch.io](https://jemow.itch.io/xquation)
+
 <img src="/images/xquation/XTan.png" alt="Laser Beam Tan" width="400" />
 
 Between each wave, the player can choose from 3 functions/variables to Add, Subtract, Divide, Multiply, or Compose into their main function, this panel is called the **Function Lab**. X is the main variable, but I also added a variable called **t** for "Time": a value that ping-pongs from -10 to 10, making the laser beam completely chaotic!
@@ -59,5 +61,3 @@ One piece of feedback I got was to add a preview so players can see what the las
 ## What I learned
 
 - More math
-
-[Play on itch.io](https://jemow.itch.io/xquation)
