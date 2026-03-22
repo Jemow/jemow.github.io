@@ -22,17 +22,17 @@ My first custom boss, with a sequential attack pattern that always keeps it flyi
 
 I only had one sprite for the animation, which limited the polish. I also got custom music triggering on spawn, which was a fun touch.
 
-<video src="/videos/TModBoss.mp4" controls playsinline></video>
+<video src="/videos/terraria/TModBoss.mp4" controls playsinline></video>
 
 ## Pokéball
 
 The feature I like the most. I implemented a throwable Pokéball that can capture any hostile mob. Once caught, a Pokéball item referencing a clone of that mob is dropped. Throwing it again spawns the mob back, no longer hostile and unable to touch you.
 
-<video src="/videos/Pokeball1.mp4" controls playsinline></video>
+<video src="/videos/terraria/Pokeball1.mp4" controls playsinline></video>
 
 The one thing I didn't finish: making captured mobs attack other hostile mobs. For vanilla mobs that would require hooking into their existing AI to override targeting logic — trickier than it sounds. For custom mobs it would be straightforward since you control the AI from scratch.
 
-<video src="/videos/Pokeball2.mp4" controls playsinline></video>
+<video src="/videos/terraria/Pokeball2.mp4" controls playsinline></video>
 
 ## Weapons
 
