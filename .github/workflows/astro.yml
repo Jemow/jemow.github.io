@@ -22,20 +22,11 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Debug SSH connection
-        run: |
-          echo "${{ secrets.A2_SSH_KEY }}" > /tmp/debug_key
-          chmod 600 /tmp/debug_key
-          ssh -vvv -i /tmp/debug_key -o StrictHostKeyChecking=no ${{ secrets.A2_USER }}@${{ secrets.A2_HOST }} echo "SSH OK" || true
-          rm /tmp/debug_key
-
-      - name: Deploy via rsync
-        uses: burnett01/rsync-deployments@7.0.1
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          switches: -avzr --delete
-          path: dist/
-          remote_path: ${{ secrets.A2_PATH }}
-          remote_host: ${{ secrets.A2_HOST }}
-          remote_user: ${{ secrets.A2_USER }}
-          remote_key: ${{ secrets.A2_SSH_KEY }}
-          remote_key_pass: ${{ secrets.A2_SSH_KEY_PASS }}
+          server: ${{ secrets.A2_HOST }}
+          username: ${{ secrets.A2_USER }}
+          password: ${{ secrets.A2_FTP_PASSWORD }}
+          local-dir: dist/
+          server-dir: /public_html/
