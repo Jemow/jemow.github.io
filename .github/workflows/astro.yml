@@ -53,8 +53,8 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  deploy-a2:
-    name: Deploy to A2 Hosting
+  deploy-cpanel:
+    name: Deploy to cPanel
     needs: build
     runs-on: ubuntu-latest
     steps:
