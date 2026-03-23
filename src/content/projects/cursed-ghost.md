@@ -5,6 +5,7 @@ pubDate: 2026-03-21
 heroImage: ../../assets/cursed-ghost/CursedGhostCover.png
 updatedDate: 2026-03-21
 categories: [Game Jams]
+engine: Unity
 ---
 
 ## Overview

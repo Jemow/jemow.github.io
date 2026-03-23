@@ -5,6 +5,7 @@ pubDate: 2026-03-23
 heroImage: ../../assets/xquation/xquation.png
 updatedDate: 2026-03-23
 categories: [Game Jams]
+engine: Unity
 ---
 
 ## Overview

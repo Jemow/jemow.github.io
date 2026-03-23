@@ -5,6 +5,7 @@ pubDate: 2026-03-21
 heroImage: ../../assets/minecraft/TNTMod.png
 updatedDate: 2026-03-21
 categories: [Mods]
+engine: CurseForge
 ---
 
 ## Overview

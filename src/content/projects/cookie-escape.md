@@ -5,11 +5,12 @@ pubDate: 2026-03-23
 heroImage: ../../assets/CECover.jpg
 updatedDate: 2026-03-23
 categories: [Game Jams]
+engine: Unity
 ---
 
 ## Overview
 
-This game was made in one week for the [Brackeys Game Jam 2025.2](https://itch.io/jam/brackeys-14) — and my first time working in a team to make a game! I found the team in the itch.io *Community* section and we formed a team of 4: 2 programmers (me included), 1 music/SFX designer, and 1 artist.
+This game was made in one week for the [Brackeys Game Jam 2025.2](https://itch.io/jam/brackeys-14), and my first time working in a team to make a game! I found the team in the itch.io *Community* section and we formed a team of 4: 2 programmers (me included), 1 music/SFX designer, and 1 artist.
 
 You play as a cookie trying to escape a room before getting eaten by kids, adults, or dogs. Between rooms you enter a HUB where you can buy upgrades or switch cookie types. You can also sacrifice some of your health to throw a crumb and distract enemies!
 

@@ -29,6 +29,7 @@ const projects = defineCollection({
 			heroImage: image().optional(),
 			tags: z.array(z.string()).default([]),
 			categories: z.array(z.string()).default([]),
+			engine: z.string().optional(),
 		}),
 });
 

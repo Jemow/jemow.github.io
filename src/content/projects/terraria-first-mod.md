@@ -5,6 +5,7 @@ pubDate: 2026-03-21
 heroImage: ../../assets/terraria/TModLoaderLogo.png
 updatedDate: 2026-03-21
 categories: [Mods]
+engine: TModLoader
 ---
 
 ## Overview
