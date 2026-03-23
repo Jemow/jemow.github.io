@@ -58,6 +58,10 @@ At the start of the jam I thought the theme was "Wave", and only near the end di
 
 One piece of feedback I got was to add a preview so players can see what the laser beam will look like before confirming their choice in the Function Lab. I had actually thought of that myself but ran out of time. It would definitely make the game easier to read and more fun to experiment with.
 
+## Github
+
+You can check more in detail on my [Github](https://github.com/Jemow/Xquation)
+
 ## What I learned
 
 - More math

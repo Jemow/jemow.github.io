@@ -9,7 +9,7 @@ categories: [Academic]
 
 ## Overview
 
-For my first year at SAE Institute Geneva, one of the first games I had to make was a space shooter using SFML. It was my first time using SFML and I'm really happy with the result, the game turned out exactly how I envisioned it. The player controls a spaceship and can equip multiple types of weapons and pick up bonuses to boost their stats. Every X seconds, a random piece of equipment or bonus drops in. The goal is to survive 3 enemy waves to win, each wave has a mini-boss and a final boss. The only thing that feels a bit off is that runs depend heavily on which bonuses you get, since it's all random, which can be frustrating. But I'm still proud of what I built, especially the 3 boss fights!
+For my first academic year as Game Programmer, one of the first games I had to make was a space shooter using SFML. It was my first time using SFML and I'm really happy with the result, the game turned out exactly how I envisioned it. The player controls a spaceship and can equip multiple types of weapons and pick up bonuses to boost their stats. Every X seconds, a random piece of equipment or bonus drops in. The goal is to survive 3 enemy waves to win, each wave has a mini-boss and a final boss. The only thing that feels a bit off is that runs depend heavily on which bonuses you get, since it's all random, which can be frustrating. But I'm still proud of what I built, especially the 3 boss fights!
 
 [Download on itch.io](https://jemow.itch.io/starlight-wardens)
 
