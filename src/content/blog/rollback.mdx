@@ -1,0 +1,175 @@
+---
+title: 'Building a Rollback Netcode Football Game'
+description: 'A technical breakdown of my 2nd-year project: architecture, rollback netcode, checksums, input delay, and the bugs that came with it'
+pubDate: 2026-03-30
+updatedDate: 2026-04-05
+heroImage: ../../assets/ball_head.png
+author: Jemo
+tags:
+  - Engine
+  - Network
+  - Photon
+  - Realtime
+---
+
+# Introduction
+
+For my second-year summative at SAE, I built **Ball Head**: a 2-player online head soccer game in C++23. The core challenge wasn't the game itself, but making it feel responsive over the network. That meant implementing **rollback netcode** from scratch on top of a custom engine.
+
+This post breaks down the architecture, how rollback works in this project, the confirm/checksum system, and the bugs I ran into.
+
+{/* IMAGE: Screenshot of the final game, two players and ball mid-air */}
+
+---
+
+# Architecture: MVC
+
+The project follows a strict **Model / View / Controller** split, which turned out to be essential for rollback to work correctly.
+
+- **Model** (`GameModel`): pure simulation. No rendering, no input reading. Just state + `Tick()`.
+- **View** (`GameView`): reads the model, draws it. Holds display-only state like interpolated positions.
+- **Controller** (`GameNetworkController`): drives everything. Reads input, talks to Photon, runs the rollback loop.
+
+![MVC Architecture](/images/rollback/mvc_rollback.png)
+
+The key constraint: **the model must be fully copyable and deterministic**. Rollback works by resetting to a confirmed snapshot and re-simulating forward, so if the model has any non-deterministic state (pointers, platform floats behaving differently) it breaks.
+
+```cpp
+// GameModel holds only plain data, easy to copy for rollback
+std::array<PlayerModel, kMaxPlayerCount> players_{};
+std::array<GoalModel,   kMaxPlayerCount> goals_{};
+BallModel      ball_{};
+GameStateModel state_{};
+PhysicsWorld   physics_;
+```
+
+Rolling back is then just:
+
+```cpp
+void GameModel::RollbackFrom(const GameModel& confirmed) {
+  players_ = confirmed.players_;
+  ball_    = confirmed.ball_;
+  state_   = confirmed.state_;
+  physics_.Restore(players_, ball_);
+}
+```
+
+---
+
+# Fixed Timestep
+
+The simulation runs at a **fixed 60 Hz** regardless of frame rate. Every `FixedUpdate()` call advances the game by exactly `1/60s`. This is non-negotiable for rollback, both machines must produce the exact same result when given the same inputs.
+
+```cpp
+inline constexpr float kFixedTimeStep = 1.0f / 60.0f;
+```
+
+The `Tick()` function applies physics, handles scoring, and advances the timer. It never touches rendering or real time.
+
+---
+
+# Input Delay
+
+Before getting to rollback itself, there's **input delay**. Instead of sending "my input for frame N" and applying it immediately, each player sends "my input for frame N + delay". Currently the delay is 4 frames (~66ms at 60Hz).
+
+```cpp
+inline constexpr int kInputDelay = 4;
+
+// In FixedUpdate, we label our own input as a future frame
+const common::Frame input_frame{current_frame_.signed_index() + model::kInputDelay};
+input_manager.set_input(local_player, local_input, input_frame);
+SendLocalInput(local_input);
+```
+
+This gives the remote input time to arrive over the network before it's needed. If it arrives in time, no rollback is needed at all. The tradeoff is a small but consistent delay that applies to everyone equally.
+
+![4 Input Delay](/images/rollback/input_delay.png)
+
+---
+
+# Rollback Netcode
+
+When remote input arrives *late* (after the frame it was labeled for has already been simulated), we need to correct the simulation. This is rollback.
+
+The flow every `FixedUpdate()`:
+
+1. Apply local input for `current_frame + kInputDelay`
+2. Send it over the network
+3. Check if any previously received input changed our speculation, `is_dirty()`
+4. If dirty: reset to the last confirmed snapshot, re-simulate every frame up to now with the corrected inputs
+5. If clean: just tick normally
+
+```cpp
+if (input_manager.is_dirty()) {
+  rollback_manager_.RollbackAndResimulate(current_model_, current_frame_);
+  input_manager.CleanDirty();
+} else {
+  current_model_.set_inputs(input_manager.inputs(current_frame_));
+  current_model_.Tick();
+}
+```
+
+The input manager keeps a **circular buffer** of the last `kMaxInputHistory` (60) frames of inputs. When an out-of-date remote input arrives, it patches that slot and marks dirty. The rollback manager then replays from the confirmed frame forward using the now-correct buffer.
+
+{/* IMAGE: Circular buffer diagram, frames 0..59 rolling window, confirmed pointer, current pointer */}
+
+---
+
+# Confirm Frames & Checksums
+
+Rollback only needs to re-simulate back to the last **confirmed frame**: a frame where both players have definitively agreed on the inputs.
+
+The game uses a **master/client** model: both players run a full independent simulation, predicting the remote player's inputs when they haven't arrived yet. The master is simply the one who decides which frames are confirmed, advances the confirm pointer, and broadcasts the result. The client receives that confirmation, verifies it matches its own simulation, and uses it as the new rollback anchor.
+
+The master only confirms a frame once it has received inputs from both players for that frame, then broadcasts the confirmed frame number alongside **checksums**: Adler32 hashes of the player positions, ball state, and scores. The client compares them against its own simulation. A mismatch means desync.
+
+Three separate checksums (players, ball, state) makes it easier to pinpoint *what* desynced during debugging.
+
+{/* IMAGE: Confirm frame flow, master computes min received, confirms frame, sends checksums to client, client compares */}
+
+---
+
+# Networking with Photon
+
+![Photon Real-Time](/images/rollback/photon_realtime.jpg)
+
+All messages go through **Photon Realtime** (ExitGames C++ SDK). The game uses two custom event codes:
+
+- `kInputEventCode = 1`: a player's input for a future frame
+- `kConfirmEventCode = 2`: master confirming a frame + checksums
+
+Inputs are packed into a single byte to keep packets tiny:
+
+```cpp
+const nByte encoded =
+    static_cast<nByte>((input.jump ? 4 : 0) | (input.horizontal + 1));
+```
+
+`horizontal` is -1/0/1, packed into bits 0-1. `jump` goes into bit 2. That's the entire game input in one byte.
+
+Photon handles room creation, matchmaking, and reliable event delivery. The game starts automatically the moment both players are in the room, no lobby UI needed.
+
+{/* IMAGE: Photon event flow diagram, P1 sends input event, P2 receives, master sends confirm event */}
+
+---
+
+# View: Interpolation
+
+The view has its own state, separate from the model. The most useful trick: **display positions** that interpolate toward the simulation.
+
+For the remote player, the display position smoothly chases the simulation position each frame:
+
+```cpp
+display_players_[i].x += (sim.x - display_players_[i].x) * kRemoteSmoothingFactor;
+display_players_[i].y += (sim.y - display_players_[i].y) * kRemoteSmoothingFactor;
+```
+
+This hides the small hops caused by rollback corrections. The local player always snaps directly to the simulation (no delay on your own character).
+
+---
+
+# Conclusion
+
+The most interesting part of this project was learning how fragile rollback is to edge cases: the confirm pointer overrunning the current frame, the input buffer overflowing, unsigned arithmetic silently wrapping. Each one was invisible until a very specific network condition triggered it.
+
+The architecture that made this workable was keeping the model completely pure, no external state, no randomness, fully copyable. Once that holds, rollback is just "reset + re-simulate", and everything else is bookkeeping.
