@@ -5,7 +5,6 @@ pubDate: 2026-03-15
 heroImage: ../../assets/bloody_merry_bg.jpg
 updatedDate: 2026-03-18
 category: Game Jams
-featured: 3
 engine: Unity
 ---
 
