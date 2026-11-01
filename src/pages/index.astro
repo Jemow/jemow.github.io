@@ -1,59 +1,20 @@
 ---
-import PageLayout from '../layouts/PageLayout.astro';
-import Hero from '../components/Hero.astro';
-import PostList from '../components/PostList.astro';
-import SectionList from "../components/SectionList.astro";
-
-import { getCollection } from "astro:content";
-import { getSite } from '../utils/consts';
-import ProjectList from '../components/ProjectList.astro';
-import Social from '../components/Social.astro';
-
-const cv = (await getCollection("cv" as any)) as any[];
-
-const site = await getSite();
+import Layout from "../layouts/Layout.astro";
+import Nav from "../components/nav.astro";
+import Home from "../components/home.astro";
+import Tech from "../components/tech.astro";
+import Projects from "../components/projects.astro";
+import Contact from "../components/contact.astro";
+import Footer from "../components/footer.astro";
+import Career from "../components/career.astro";
 ---
 
-<PageLayout
-	title={site.author.name || 'Dasein'}
->
-	<Hero
-		title={site.author.name || 'Dasein'}
-		description={site.author.bio || 'Welcome to my personal website.'}
-		role={site.author.role}
-		location={site.author.location}
-		actions={[
-			{ label: 'View Blog', href: '/blog' },
-		]}
-	/>
-
-	<Social class="mt-8" />
-
-	<ProjectList
-		heading="Projects"
-		limit={4}
-		viewAllHref="/projects"
-	/>
-
-	<PostList
-		heading="Blog"
-		limit={3}
-		viewAllHref="/blog"
-	/>
-
-	            <!-- Sections (from src/content/sections.yml) -->
-            {
-                cv.map((section) => {
-                    if (section.data.items) {
-                        return (
-                            <SectionList
-                                heading={section.data.heading}
-                                items={section.data.items}
-                            />
-                        );
-                    }
-                    return null;
-                })
-            }
-		
-</PageLayout>
+<Layout>
+  <Nav onHome />
+	<Home />
+	<Career />
+	<Projects />
+	<Tech />
+	<Contact />
+	<Footer />
+</Layout>

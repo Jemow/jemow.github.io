@@ -4,7 +4,7 @@ description: 'Chili Code Jam #4 - "Grow"'
 pubDate: 2026-03-23
 heroImage: ../../assets/xquation/xquation.png
 updatedDate: 2026-03-23
-categories: [Game Jams]
+category: Game Jams
 engine: Unity
 ---
 

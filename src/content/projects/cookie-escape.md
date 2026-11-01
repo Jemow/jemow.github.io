@@ -4,7 +4,7 @@ description: Brackeys Game Jam 2025.2 - "Risk it for the Biscuit" / First team p
 pubDate: 2026-03-23
 heroImage: ../../assets/CECover.jpg
 updatedDate: 2026-03-23
-categories: [Game Jams]
+category: Game Jams
 engine: Unity
 ---
 

@@ -4,7 +4,7 @@ description: 'My first mod on Minecraft Java 1.21.5'
 pubDate: 2026-03-21
 heroImage: ../../assets/minecraft/TNTMod.png
 updatedDate: 2026-03-21
-categories: [Mods]
+category: Personal
 engine: Forge
 ---
 

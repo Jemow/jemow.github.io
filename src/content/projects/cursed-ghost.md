@@ -4,7 +4,7 @@ description: Pixel Game Jam 2025 - "From The Dead"
 pubDate: 2026-03-21
 heroImage: ../../assets/cursed-ghost/CursedGhostCover.png
 updatedDate: 2026-03-21
-categories: [Game Jams]
+category: Game Jams
 engine: Unity
 ---
 
