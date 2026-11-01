@@ -143,12 +143,15 @@
   .launching {
     animation: launch 0.5s ease-in forwards;
   }
+}
 
-  /* Project write-ups (Markdown / MDX), coloured by the active theme */
+/* Project write-ups (Markdown / MDX), coloured by the active theme.
+   Kept outside any @layer so it overrides the typography plugin's own .prose colours. */
   .prose-theme {
-    --tw-prose-body: var(--color-subtext);
+    /* Main text slightly softened toward the background, readable in both light and dark */
+    --tw-prose-body: color-mix(in srgb, var(--color-maintext) 88%, var(--color-background));
     --tw-prose-headings: var(--color-maintext);
-    --tw-prose-lead: var(--color-subtext);
+    --tw-prose-lead: color-mix(in srgb, var(--color-maintext) 88%, var(--color-background));
     --tw-prose-links: var(--color-accent);
     --tw-prose-bold: var(--color-maintext);
     --tw-prose-counters: var(--color-accent);
@@ -182,7 +185,6 @@
   .prose-theme :where(:not(pre) > code) {
     @apply rounded px-1.5 py-0.5 bg-accent/10 before:content-none after:content-none;
   }
-}
 
 /* Custom Scrollbar for a cleaner look */
 ::-webkit-scrollbar {

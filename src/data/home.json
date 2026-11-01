@@ -1,7 +1,7 @@
 {
   "_comment": "Your profile. 'photoUrl' is a file name inside src/assets (leave empty to hide the photo). 'resumeUrl' empty hides the resume button.",
   "name": "Jemo",
-  "photoUrl": "",
+  "photoUrl": "profile-placeholder.svg",
   "location": "Geneva, Switzerland",
   "availability": "",
   "jobTitle": "Game Programmer",

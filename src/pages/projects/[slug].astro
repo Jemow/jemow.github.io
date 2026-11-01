@@ -40,7 +40,7 @@ const formatDate = (date: Date) =>
 				{category}
 			</span>
 			<h1 class="text-4xl md:text-5xl font-heading font-bold text-maintext tracking-tight">{title}</h1>
-			<p class="text-subtext text-lg">{description}</p>
+			<p class="text-maintext/85 text-lg">{description}</p>
 			<div class="flex flex-wrap items-center gap-2 text-xs font-mono text-subtext">
 				<time datetime={pubDate.toISOString()}>{formatDate(pubDate)}</time>
 				{updatedDate && <span>· Updated {formatDate(updatedDate)}</span>}
