@@ -18,7 +18,7 @@
         { "name": "Unity", "level": 3, "icon": "skill-icons:unity-dark" },
         { "name": "OpenGL ES", "level": 2, "icon": "devicon:opengl" },
         { "name": "SFML", "level": 2, "icon": "devicon:sfml" },
-        { "name": "Photon", "level": 1, "icon": "devicon:photonengine" },
+        { "name": "Photon Fusion", "level": 2, "icon": "devicon:photonengine" },
         { "name": "Forge", "level": 1, "icon": "mdi:minecraft" },
         { "name": "tModLoader", "level": 1, "icon": "mdi:sword" }
       ]
