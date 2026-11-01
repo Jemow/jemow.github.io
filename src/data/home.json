@@ -1,0 +1,49 @@
+{
+  "_comment": "Your profile. 'photoUrl' is a file name inside src/assets (leave empty to hide the photo). 'resumeUrl' empty hides the resume button.",
+  "name": "Jemo",
+  "photoUrl": "",
+  "location": "Geneva, Switzerland",
+  "availability": "",
+  "jobTitle": "Game Programmer",
+  "description": "Game Programming student at SAE Institute Geneva, mainly building games with Unity. I enjoy programming, especially in C# and C++, and making games has become my main passion.",
+  "descriptionHtml": "Game Programming student at <span class='text-accent font-bold'>SAE Institute</span> Geneva, mainly building games with <span class='text-accent font-bold'>Unity</span>. I enjoy programming, especially in <span class='text-accent font-bold'>C#</span> and <span class='text-accent font-bold'>C++</span>. I first studied web and application development at CFPT, then decided to focus on game development. Making games feels natural to me: fun and creative rather than just work.",
+  "webpageTitle": "Jemo | Game Programmer",
+  "resumeUrl": "",
+
+  "keywords": "Jemo, game programmer, Unity, C#, C++, OpenGL, game jams, portfolio, Geneva",
+  "lang": "en",
+  "twitterHandle": "Jemow4",
+  "ogImageUrl": "",
+
+  "_socials_comment": "Leave 'url' empty to hide the icon. 'showInContact' controls the Contact section.",
+  "socials": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/Jemow",
+      "icon": "mdi:github",
+      "label": "View Profile",
+      "showInContact": true
+    },
+    {
+      "name": "LinkedIn",
+      "url": "https://www.linkedin.com/in/jemoel-ablay-074208309/",
+      "icon": "mdi:linkedin",
+      "label": "Connect",
+      "showInContact": true
+    },
+    {
+      "name": "X",
+      "url": "https://x.com/Jemow4",
+      "icon": "mdi:twitter",
+      "label": "Follow",
+      "showInContact": true
+    },
+    {
+      "name": "Email",
+      "url": "mailto:jemoablay0@gmail.com",
+      "icon": "mdi:email",
+      "label": "Send Email",
+      "showInContact": true
+    }
+  ]
+}

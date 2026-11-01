@@ -2,8 +2,7 @@
 
 import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
-import pagefind from "astro-pagefind";
-import { defineConfig, fontProviders } from "astro/config";
+import { defineConfig } from "astro/config";
 
 import tailwindcss from "@tailwindcss/vite";
 
@@ -13,23 +12,17 @@ import icon from "astro-icon";
 export default defineConfig({
   site: "https://jemo.github.io",
   base: '/',
-  integrations: [mdx(), sitemap(), pagefind(), icon()],
+  integrations: [mdx(), sitemap(), icon()],
+
+  // Old URLs from the previous theme, kept so shared links don't break
+  redirects: {
+    "/blog": "/projects",
+    "/blog/opengl": "/projects/opengl",
+    "/blog/rollback": "/projects/rollback",
+    "/about": "/",
+  },
 
   vite: {
     plugins: [tailwindcss()],
-  },
-  experimental: {
-    fonts: [
-      {
-        provider: fontProviders.fontsource(),
-        name: "Space Grotesk",
-        cssVariable: "--font-sans",
-      },
-      {
-        provider: fontProviders.fontsource(),
-        name: "IBM Plex Mono",
-        cssVariable: "--font-mono",
-      },
-    ],
   },
 });

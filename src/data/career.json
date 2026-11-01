@@ -1,0 +1,26 @@
+[
+  {
+    "company": "SAE Institute Geneva",
+    "role": "Bachelor in Game Programming",
+    "period": "2024 - 2027",
+    "type": "Student",
+    "description": "Currently in my 3rd and final year of game programming: engine and graphics programming, networking, and team game projects.",
+    "skills": ["C++", "C#", "Unity", "OpenGL ES", "Networking"]
+  },
+  {
+    "company": "CFPT",
+    "role": "CFC in Web & Application Development",
+    "period": "2020 - 2023",
+    "type": "Student",
+    "description": "3-year program in web and application development. Built a social media website for my final exam.",
+    "skills": ["Web Development", "Application Development"]
+  },
+  {
+    "company": "CFPT",
+    "role": "Maturité Professionnelle",
+    "period": "2020 - 2023",
+    "type": "Student",
+    "description": "General culture curriculum completed alongside my CFC.",
+    "skills": []
+  }
+]
