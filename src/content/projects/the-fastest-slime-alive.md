@@ -12,7 +12,7 @@ engine: Unity
 
 [Speed Jam #8](https://itch.io/jam/speedjam8) was the first game jam I participated in, a solo entry on itch.io with the theme "Flow" and a 72-hour limit. One special rule of this jam: the game must include a leaderboard, making it competitive between players.
 
-My idea was a 2D platformer where you control a slime, which felt like a natural fit for "Flow" given how fluid slimes are. The gameplay revolves around managing your velocity and sweeping through slopes. To add more creativity for speedruns, I added the **Bumper** mechanic — the player can throw a bumper and choose the direction it bounces them, gaining more *Speed*. I ended up with 5 levels, and while the level design wasn't my best work, I'm really happy with the result for my first game jam!
+My idea was a 2D platformer where you control a slime, which felt like a natural fit for "Flow" given how fluid slimes are. The gameplay revolves around managing your velocity and sweeping through slopes. To add more creativity for speedruns, I added the **Bumper** mechanic, the player can throw a bumper and choose the direction it bounces them, gaining more *Speed*. I ended up with 5 levels, and while the level design wasn't my best work, I'm really happy with the result for my first game jam!
 
 [Play on itch.io](https://jemow.itch.io/the-fastest-slime-alive)
 
