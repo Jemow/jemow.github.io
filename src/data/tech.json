@@ -13,7 +13,7 @@
       "skills": [
         { "name": "C#", "level": 3, "icon": "skill-icons:cs" },
         { "name": "C++", "level": 2, "icon": "skill-icons:cpp" },
-        { "name": "Photon Fusion", "level": 2, "icon": "devicon:photonengine" },
+        { "name": "Photon (Fusion & Realtime)", "level": 2, "icon": "devicon:photonengine" },
         { "name": "OpenGL ES", "level": 2, "icon": "devicon:opengl" },
         { "name": "SFML", "level": 2, "icon": "devicon:sfml" },
         { "name": "Steamworks", "level": 1, "icon": "mdi:steam" }
