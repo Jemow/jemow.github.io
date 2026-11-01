@@ -1,0 +1,89 @@
+---
+import { Icon } from 'astro-icon/components';
+import { Image } from 'astro:assets';
+import { getCollection } from 'astro:content';
+
+// The project with `spotlight: true` in its frontmatter
+const [project] = await getCollection('projects', ({ data }) => data.spotlight);
+const data = project?.data;
+const chips = data ? [...(data.engine ? [data.engine] : []), ...data.tags] : [];
+---
+
+{project && data && (
+  <section id="spotlight" class="section-container !pt-0">
+    <div class="spotlight-card group relative grid lg:grid-cols-[1.4fr_1fr] gap-0 rounded-3xl overflow-hidden border border-accent/20 bg-accent/5 hover:border-accent/50 transition-colors duration-500">
+
+      <!-- Capsule -->
+      <a href={`/projects/${project.id}/`} class="relative block aspect-video lg:aspect-auto overflow-hidden">
+        {data.heroImage && (
+          <Image
+            src={data.heroImage}
+            alt={data.title}
+            width={1200}
+            class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+            loading="eager"
+          />
+        )}
+      </a>
+
+      <!-- Details -->
+      <div class="flex flex-col justify-center gap-4 p-6 md:p-10">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold px-2.5 py-1 rounded-full border border-accent/40 bg-accent/15 text-accent">
+            <Icon name="mdi:star" class="w-3 h-3" /> Spotlight
+          </span>
+          {data.spotlightBadge && (
+            <span class="inline-flex items-center gap-1 text-[10px] uppercase tracking-widest font-bold px-2.5 py-1 rounded-full border border-maintext/20 text-maintext/80">
+              <Icon name="mdi:steam" class="w-3 h-3" /> {data.spotlightBadge}
+            </span>
+          )}
+        </div>
+
+        <h2 class="text-4xl md:text-5xl font-heading font-bold text-maintext tracking-tight">{data.title}</h2>
+        <p class="text-maintext/85 font-body leading-relaxed">{data.description}</p>
+
+        {chips.length > 0 && (
+          <div class="flex flex-wrap gap-2">
+            {chips.map((chip) => (
+              <span class="rounded-md text-[10px] px-3 py-1 bg-accent/5 border border-accent/20 text-accent">{chip}</span>
+            ))}
+          </div>
+        )}
+
+        <div class="flex flex-wrap gap-3 mt-2">
+          {data.storeUrl && (
+            <a
+              href={data.storeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-accent text-background font-body text-sm font-semibold hover:scale-105 transition-transform duration-300"
+            >
+              <Icon name="mdi:steam" class="w-4 h-4" /> View on Steam
+            </a>
+          )}
+          <a
+            href={`/projects/${project.id}/`}
+            class="inline-flex items-center gap-2 px-6 py-2.5 rounded-full border border-accent/40 bg-accent/10 text-maintext font-body text-sm font-medium hover:border-accent hover:bg-accent/20 hover:scale-105 transition-all duration-300"
+          >
+            How I made it <Icon name="mdi:arrow-right" class="w-4 h-4 text-accent" />
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+)}
+
+<style>
+  .spotlight-card {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: spotlightIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) 600ms forwards;
+  }
+
+  @keyframes spotlightIn {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>

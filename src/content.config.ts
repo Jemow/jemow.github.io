@@ -19,6 +19,11 @@ const projects = defineCollection({
 			engine: z.string().optional(),
 			// Set to 1, 2 or 3 to show the project on the home page (in that order)
 			featured: z.number().optional(),
+			// Show this project in the big banner under the intro (only one project should have it)
+			spotlight: z.boolean().default(false),
+			spotlightBadge: z.string().optional(),
+			// External store page (Steam, itch.io...) for the spotlight button
+			storeUrl: z.string().url().optional(),
 		}),
 });
 

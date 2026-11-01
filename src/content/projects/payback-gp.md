@@ -5,7 +5,9 @@ pubDate: 2026-01-11
 heroImage: ../../assets/payback-gp/capsule.png
 updatedDate: 2026-11-01
 category: Personal
-featured: 1
+spotlight: true
+spotlightBadge: Coming to Steam
+storeUrl: https://store.steampowered.com/app/4925650/Payback_GP/
 engine: Unity
 tags:
   - Photon Fusion
