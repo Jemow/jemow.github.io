@@ -13,7 +13,7 @@
       "skills": [
         { "name": "C#", "level": 3, "icon": "skill-icons:cs" },
         { "name": "C++", "level": 2, "icon": "skill-icons:cpp" },
-        { "name": "Photon (Fusion & Realtime)", "level": 2, "icon": "devicon:photonengine" },
+        { "name": "Photon", "level": 2, "icon": "devicon:photonengine" },
         { "name": "OpenGL ES", "level": 2, "icon": "devicon:opengl" },
         { "name": "SFML", "level": 2, "icon": "devicon:sfml" },
         { "name": "Steamworks", "level": 1, "icon": "mdi:steam" }
@@ -44,7 +44,7 @@
         { "name": "Git", "level": 2, "icon": "skill-icons:git" },
         { "name": "GitHub", "level": 2, "icon": "skill-icons:github-dark" },
         { "name": "Perforce", "level": 2, "icon": "mdi:source-branch" },
-        { "name": "Unity Version Control", "level": 2, "icon": "mdi:source-merge" },
+        { "name": "Plastic SCM", "level": 2, "icon": "mdi:source-merge" },
         { "name": "DBeaver", "level": 2, "icon": "devicon:dbeaver" }
       ]
     }
