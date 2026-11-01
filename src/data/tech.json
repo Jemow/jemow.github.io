@@ -1,33 +1,51 @@
 {
-  "_comment": "Draft based on your projects: adjust names and levels (1 = Beginner, 2 = Proficient, 3 = Expert). Icons: https://icon-sets.iconify.design (skill-icons, devicon, mdi sets are installed).",
+  "_comment": "Levels: 1 = Familiar, 2 = Intermediate, 3 = Advanced. Icons: https://icon-sets.iconify.design (skill-icons, devicon, mdi sets are installed).",
   "categories": [
     {
-      "title": "Languages",
+      "title": "Game Engines",
       "skills": [
-        { "name": "C#", "level": 3, "icon": "skill-icons:cs" },
-        { "name": "C++", "level": 2, "icon": "skill-icons:cpp" },
-        { "name": "Java", "level": 1, "icon": "skill-icons:java-dark" },
-        { "name": "HTML", "level": 2, "icon": "skill-icons:html" },
-        { "name": "CSS", "level": 2, "icon": "skill-icons:css" },
-        { "name": "JavaScript", "level": 2, "icon": "skill-icons:javascript" }
+        { "name": "Unity", "level": 3, "icon": "skill-icons:unity-dark" },
+        { "name": "Unreal Engine", "level": 2, "icon": "skill-icons:unrealengine" }
       ]
     },
     {
-      "title": "Engines & Frameworks",
+      "title": "Game Programming",
       "skills": [
-        { "name": "Unity", "level": 3, "icon": "skill-icons:unity-dark" },
+        { "name": "C#", "level": 3, "icon": "skill-icons:cs" },
+        { "name": "C++", "level": 2, "icon": "skill-icons:cpp" },
+        { "name": "Photon Fusion", "level": 2, "icon": "devicon:photonengine" },
         { "name": "OpenGL ES", "level": 2, "icon": "devicon:opengl" },
         { "name": "SFML", "level": 2, "icon": "devicon:sfml" },
-        { "name": "Photon Fusion", "level": 2, "icon": "devicon:photonengine" },
+        { "name": "Steamworks", "level": 1, "icon": "mdi:steam" }
+      ]
+    },
+    {
+      "title": "Modding",
+      "skills": [
         { "name": "Forge", "level": 1, "icon": "mdi:minecraft" },
         { "name": "tModLoader", "level": 1, "icon": "mdi:sword" }
+      ]
+    },
+    {
+      "title": "Other Languages",
+      "skills": [
+        { "name": "Python", "level": 1, "icon": "skill-icons:python-dark" },
+        { "name": "Java", "level": 1, "icon": "skill-icons:java-dark" },
+        { "name": "HTML", "level": 2, "icon": "skill-icons:html" },
+        { "name": "CSS", "level": 2, "icon": "skill-icons:css" },
+        { "name": "JavaScript", "level": 1, "icon": "skill-icons:javascript" },
+        { "name": "PHP", "level": 2, "icon": "skill-icons:php-dark" },
+        { "name": "SQL", "level": 2, "icon": "mdi:database" }
       ]
     },
     {
       "title": "Tools",
       "skills": [
         { "name": "Git", "level": 2, "icon": "skill-icons:git" },
-        { "name": "GitHub", "level": 2, "icon": "skill-icons:github-dark" }
+        { "name": "GitHub", "level": 2, "icon": "skill-icons:github-dark" },
+        { "name": "Perforce", "level": 2, "icon": "mdi:source-branch" },
+        { "name": "Unity Version Control", "level": 2, "icon": "mdi:source-merge" },
+        { "name": "DBeaver", "level": 2, "icon": "devicon:dbeaver" }
       ]
     }
   ]
