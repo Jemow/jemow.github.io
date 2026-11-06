@@ -45,7 +45,9 @@
         { "name": "GitHub", "level": 2, "icon": "skill-icons:github-dark" },
         { "name": "Perforce", "level": 2, "icon": "mdi:source-branch" },
         { "name": "Plastic SCM", "level": 2, "icon": "mdi:source-merge" },
-        { "name": "DBeaver", "level": 2, "icon": "devicon:dbeaver" }
+        { "name": "DBeaver", "level": 2, "icon": "devicon:dbeaver" },
+        { "name": "Jira", "level": 2, "icon": "devicon:jira" },
+        { "name": "Confluence", "level": 1, "icon": "devicon:confluence" }
       ]
     }
   ]
